@@ -23,16 +23,38 @@ actor RoutingEngine {
         for lift in resort.lifts {
             nodes[lift.id] = Node(
                 id: lift.id,
-                position: resort.location, // TODO: Get actual lift coordinates
+                position: Resort.Location(
+                    latitude: lift.latitude,
+                    longitude: lift.longitude,
+                    altitude: resort.location.altitude
+                ),
                 type: .lift(lift)
             )
         }
         
         // Add run nodes
         for run in resort.runs {
-            nodes[run.id] = Node(
-                id: run.id,
-                position: resort.location, // TODO: Get actual run coordinates
+            // Add top node for the run
+            let topNodeId = "\(run.id)_top"
+            nodes[topNodeId] = Node(
+                id: topNodeId,
+                position: Resort.Location(
+                    latitude: run.topLatitude,
+                    longitude: run.topLongitude,
+                    altitude: resort.location.altitude + run.verticalDrop
+                ),
+                type: .run(run)
+            )
+            
+            // Add bottom node for the run
+            let bottomNodeId = "\(run.id)_bottom"
+            nodes[bottomNodeId] = Node(
+                id: bottomNodeId,
+                position: Resort.Location(
+                    latitude: run.bottomLatitude,
+                    longitude: run.bottomLongitude,
+                    altitude: resort.location.altitude
+                ),
                 type: .run(run)
             )
         }
@@ -43,20 +65,110 @@ actor RoutingEngine {
     private func buildEdges(from resort: Resort) -> [Edge] {
         var edges: [Edge] = []
         
-        // TODO: Build actual connections between lifts and runs
-        // This is a placeholder that assumes all lifts connect to all runs
+        // For each lift, connect to the top of nearby runs
         for lift in resort.lifts {
             for run in resort.runs {
-                edges.append(Edge(
-                    from: lift.id,
-                    to: run.id,
-                    weight: calculateWeight(lift: lift, run: run),
-                    type: .connection
-                ))
+                // Calculate distance between lift top and run top
+                let liftLocation = CLLocation(
+                    latitude: lift.latitude,
+                    longitude: lift.longitude
+                )
+                let runTopLocation = CLLocation(
+                    latitude: run.topLatitude,
+                    longitude: run.topLongitude
+                )
+                
+                // If the lift is close to the run's top (within 100 meters), create a connection
+                let distance = liftLocation.distance(from: runTopLocation)
+                if distance <= 100 { // Threshold for considering a lift services a run
+                    edges.append(Edge(
+                        from: lift.id,
+                        to: "\(run.id)_top",
+                        weight: distance,
+                        type: .liftToRun
+                    ))
+                }
+            }
+        }
+        
+        // For each run, connect its top to its bottom
+        for run in resort.runs {
+            let topNodeId = "\(run.id)_top"
+            let bottomNodeId = "\(run.id)_bottom"
+            
+            edges.append(Edge(
+                from: topNodeId,
+                to: bottomNodeId,
+                weight: run.length,
+                type: .run
+            ))
+        }
+        
+        // For each run's bottom, connect to nearby lift bases
+        for run in resort.runs {
+            let runBottomLocation = CLLocation(
+                latitude: run.bottomLatitude,
+                longitude: run.bottomLongitude
+            )
+            
+            for lift in resort.lifts {
+                let liftLocation = CLLocation(
+                    latitude: lift.latitude,
+                    longitude: lift.longitude
+                )
+                
+                // If the lift base is close to the run's bottom (within 100 meters), create a connection
+                let distance = runBottomLocation.distance(from: liftLocation)
+                if distance <= 100 {
+                    edges.append(Edge(
+                        from: "\(run.id)_bottom",
+                        to: lift.id,
+                        weight: distance,
+                        type: .connection
+                    ))
+                }
             }
         }
         
         return edges
+    }
+    
+    func debugPrintGraph() {
+        guard EnvConfig.isDebugMode else { return }
+        
+        guard let graph = resortGraph else {
+            print("No graph available")
+            return
+        }
+        
+        print("\n=== Resort Graph Debug Info ===")
+        print("Nodes (\(graph.nodes.count)):")
+        for (id, node) in graph.nodes {
+            let typeStr = switch node.type {
+            case .lift(let lift): "Lift: \(lift.name)"
+            case .run(let run): "Run: \(run.name)"
+            }
+            print("- \(id): \(typeStr) at (\(node.position.latitude), \(node.position.longitude))")
+        }
+        
+        print("\nEdges (\(graph.edges.count)):")
+        for edge in graph.edges {
+            let fromNode = graph.nodes[edge.from]
+            let toNode = graph.nodes[edge.to]
+            print("- \(edge.from) -> \(edge.to) (\(edge.type))")
+            print("  Weight: \(edge.weight)m")
+            if let from = fromNode, let to = toNode {
+                let distance = CLLocation(
+                    latitude: from.position.latitude,
+                    longitude: from.position.longitude
+                ).distance(from: CLLocation(
+                    latitude: to.position.latitude,
+                    longitude: to.position.longitude
+                ))
+                print("  Actual Distance: \(Int(distance))m")
+            }
+        }
+        print("==============================\n")
     }
     
     // MARK: - Route Finding
@@ -341,6 +453,7 @@ struct Edge {
         case lift
         case run
         case connection
+        case liftToRun
     }
 }
 

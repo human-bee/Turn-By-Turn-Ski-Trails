@@ -198,11 +198,60 @@ struct ResortInfoResponse: Codable {
         let difficulty: String
         let length: Double
         let verticalDrop: Double
+        let latitude: Double
+        let longitude: Double
+        let topLatitude: Double?
+        let topLongitude: Double?
+        let bottomLatitude: Double?
+        let bottomLongitude: Double?
     }
     
     struct LiftInfo: Codable {
         let id: String
         let name: String
         let capacity: Int
+        let latitude: Double
+        let longitude: Double
+    }
+    
+    // Convert response to domain model
+    func toDomainModel() -> Resort {
+        let domainRuns = runs.map { runInfo -> Run in
+            Run(
+                id: runInfo.id,
+                name: runInfo.name,
+                difficulty: SkiDifficulty(rawValue: runInfo.difficulty) ?? .beginner,
+                status: .open, // Default to open, will be updated by lift status API
+                length: runInfo.length,
+                verticalDrop: runInfo.verticalDrop,
+                latitude: runInfo.latitude,
+                longitude: runInfo.longitude,
+                topLatitude: runInfo.topLatitude ?? runInfo.latitude,
+                topLongitude: runInfo.topLongitude ?? runInfo.longitude,
+                bottomLatitude: runInfo.bottomLatitude ?? runInfo.latitude,
+                bottomLongitude: runInfo.bottomLongitude ?? runInfo.longitude
+            )
+        }
+        
+        let domainLifts = lifts.map { liftInfo -> Lift in
+            Lift(
+                id: liftInfo.id,
+                name: liftInfo.name,
+                status: .scheduled, // Default to scheduled, will be updated by lift status API
+                capacity: liftInfo.capacity,
+                waitTime: nil,
+                latitude: liftInfo.latitude,
+                longitude: liftInfo.longitude
+            )
+        }
+        
+        return Resort(
+            id: id,
+            name: name,
+            location: location,
+            lifts: domainLifts,
+            runs: domainRuns,
+            weather: nil // Will be updated by weather API
+        )
     }
 } 

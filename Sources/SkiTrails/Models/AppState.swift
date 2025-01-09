@@ -55,6 +55,25 @@ class AppState: ObservableObject {
             // Fetch resort info
             let resort = try await APIClient.shared.fetchResortInfo(id: id)
             
+            // Debug logging
+            if EnvConfig.isDebugMode {
+                print("\n=== Resort Data Debug Info ===")
+                print("Resort: \(resort.name)")
+                print("Location: (\(resort.location.latitude), \(resort.location.longitude))")
+                print("\nLifts (\(resort.lifts.count)):")
+                for lift in resort.lifts {
+                    print("- \(lift.name) at (\(lift.latitude), \(lift.longitude))")
+                }
+                print("\nRuns (\(resort.runs.count)):")
+                for run in resort.runs {
+                    print("- \(run.name) (\(run.difficulty))")
+                    print("  Top: (\(run.topLatitude), \(run.topLongitude))")
+                    print("  Bottom: (\(run.bottomLatitude), \(run.bottomLongitude))")
+                    print("  Length: \(run.length)m, Drop: \(run.verticalDrop)m")
+                }
+                print("==============================\n")
+            }
+            
             // Start async tasks for weather and lift status
             async let weather = APIClient.shared.fetchWeather(for: resort)
             async let lifts = APIClient.shared.fetchLiftStatus(for: resort)
@@ -69,6 +88,11 @@ class AppState: ObservableObject {
             
             // Initialize routing engine with resort data
             await RoutingEngine.shared.buildGraph(for: updatedResort)
+            
+            // Debug print the graph
+            if EnvConfig.isDebugMode {
+                await RoutingEngine.shared.debugPrintGraph()
+            }
             
         } catch {
             await handleError(error, context: .api(endpoint: "resort/\(id)"))
@@ -162,6 +186,8 @@ struct Lift: Identifiable, Codable {
     var status: Status
     let capacity: Int
     let waitTime: Int?
+    let latitude: Double
+    let longitude: Double
     
     enum Status: String, Codable {
         case open
@@ -178,11 +204,36 @@ struct Run: Identifiable, Codable {
     var status: Status
     let length: Double // in meters
     let verticalDrop: Double // in meters
+    let latitude: Double
+    let longitude: Double
+    let topLatitude: Double
+    let topLongitude: Double
+    let bottomLatitude: Double
+    let bottomLongitude: Double
     
     enum Status: String, Codable {
         case open
         case closed
         case grooming
+    }
+    
+    // Default to main coordinates if top/bottom not provided
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        id = try container.decode(String.self, forKey: .id)
+        name = try container.decode(String.self, forKey: .name)
+        difficulty = try container.decode(SkiDifficulty.self, forKey: .difficulty)
+        status = try container.decode(Status.self, forKey: .status)
+        length = try container.decode(Double.self, forKey: .length)
+        verticalDrop = try container.decode(Double.self, forKey: .verticalDrop)
+        latitude = try container.decode(Double.self, forKey: .latitude)
+        longitude = try container.decode(Double.self, forKey: .longitude)
+        
+        // Try to decode top/bottom coordinates, fall back to main coordinates
+        topLatitude = try container.decodeIfPresent(Double.self, forKey: .topLatitude) ?? latitude
+        topLongitude = try container.decodeIfPresent(Double.self, forKey: .topLongitude) ?? longitude
+        bottomLatitude = try container.decodeIfPresent(Double.self, forKey: .bottomLatitude) ?? latitude
+        bottomLongitude = try container.decodeIfPresent(Double.self, forKey: .bottomLongitude) ?? longitude
     }
 }
 

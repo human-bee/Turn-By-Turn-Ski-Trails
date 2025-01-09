@@ -89,6 +89,21 @@ struct ControlPanelView: View {
     
     var body: some View {
         VStack(spacing: 12) {
+            // Debug Controls (only in debug mode)
+            if EnvConfig.isDebugMode {
+                Button(action: {
+                    // Load Palisades Tahoe as a test resort
+                    Task {
+                        await appState.loadResort(id: "palisades")
+                    }
+                }) {
+                    Label("Load Test Resort", systemName: "arrow.clockwise")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.orange)
+            }
+            
             // Difficulty Filter
             HStack {
                 ForEach(SkiDifficulty.allCases, id: \.self) { difficulty in
@@ -104,11 +119,26 @@ struct ControlPanelView: View {
             // Navigation Button
             Button(action: {
                 // Start navigation mode
+                if let resort = appState.selectedResort {
+                    Task {
+                        // Test navigation from resort base to a random point
+                        let baseLocation = CLLocationCoordinate2D(
+                            latitude: resort.location.latitude,
+                            longitude: resort.location.longitude
+                        )
+                        let randomPoint = CLLocationCoordinate2D(
+                            latitude: baseLocation.latitude + 0.01,
+                            longitude: baseLocation.longitude + 0.01
+                        )
+                        await appState.startNavigation(from: baseLocation, to: randomPoint)
+                    }
+                }
             }) {
                 Label("Start Navigation", systemName: "location.fill")
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
+            .disabled(appState.selectedResort == nil)
         }
         .padding()
         .background(.ultraThinMaterial)
