@@ -8,10 +8,10 @@ let package = Package(
         .macOS(.v12)
     ],
     products: [
-        .library(
+        .executable(
             name: "SkiTrails",
             targets: ["SkiTrails"]
-        ),
+        )
     ],
     dependencies: [
         .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", from: "10.0.0"),
@@ -19,7 +19,7 @@ let package = Package(
         .package(url: "https://github.com/getsentry/sentry-cocoa.git", from: "8.0.0")
     ],
     targets: [
-        .target(
+        .executableTarget(
             name: "SkiTrails",
             dependencies: [
                 .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
@@ -27,12 +27,15 @@ let package = Package(
                 .product(name: "FirebaseMessaging", package: "firebase-ios-sdk"),
                 .product(name: "Sentry", package: "sentry-cocoa")
             ],
-            path: "Sources"
+            path: "Sources/SkiTrails",
+            resources: [
+                .process("Resources")
+            ]
         ),
         .testTarget(
             name: "SkiTrailsTests",
             dependencies: ["SkiTrails"],
-            path: "Tests"
+            path: "Tests/SkiTrailsTests"
         )
     ]
 ) 
