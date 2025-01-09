@@ -87,6 +87,7 @@ struct TopBarView: View {
 struct ControlPanelView: View {
     @EnvironmentObject private var appState: AppState
     @ObservedObject var viewModel: ContentViewModel
+    @State private var showDebugPanel = false
     
     var body: some View {
         VStack(spacing: 12) {
@@ -103,6 +104,61 @@ struct ControlPanelView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+                
+                Button(action: {
+                    showDebugPanel.toggle()
+                }) {
+                    Label("Debug Controls", systemName: "ladybug.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.purple)
+                
+                if showDebugPanel {
+                    VStack(spacing: 8) {
+                        Text("Location Simulation")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                        
+                        // Base Location (Palisades Tahoe)
+                        Button(action: {
+                            simulateLocation(latitude: 39.1911, longitude: -120.2356)
+                        }) {
+                            Label("Base Lodge", systemName: "house.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
+                        
+                        // Top of KT-22
+                        Button(action: {
+                            simulateLocation(latitude: 39.1967, longitude: -120.2385)
+                        }) {
+                            Label("KT-22 Peak", systemName: "mountain.2.fill")
+                                .frame(maxWidth: .infinity)
+                        }
+                        .buttonStyle(.bordered)
+                        .tint(.blue)
+                        
+                        // Current Location Info
+                        if let location = appState.locationManager.currentLocation {
+                            Text("Current Location:")
+                                .font(.caption)
+                            Text(String(format: "Lat: %.4f", location.coordinate.latitude))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(String(format: "Lon: %.4f", location.coordinate.longitude))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                            Text(String(format: "Accuracy: ±%.0fm", location.horizontalAccuracy))
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                    .padding(.vertical, 8)
+                    .background(Color.black.opacity(0.1))
+                    .cornerRadius(8)
+                }
                 
                 Button(action: {
                     appState.locationManager.startUpdatingLocation()
@@ -129,20 +185,17 @@ struct ControlPanelView: View {
             // Navigation Button
             Button(action: {
                 // Start navigation mode
-                if let resort = appState.selectedResort {
+                if let resort = appState.selectedResort,
+                   let userLocation = appState.locationManager.currentLocation {
                     Task {
-                        // Test navigation from resort base to a random point
-                        let baseLocation = CLLocationCoordinate2D(
-                            latitude: resort.location.latitude,
-                            longitude: resort.location.longitude
-                        )
-                        let randomPoint = CLLocationCoordinate2D(
-                            latitude: baseLocation.latitude + 0.01,
-                            longitude: baseLocation.longitude + 0.01
+                        // Navigate from current location to KT-22 peak
+                        let destination = CLLocationCoordinate2D(
+                            latitude: 39.1967,
+                            longitude: -120.2385
                         )
                         await appState.startNavigation(
-                            from: baseLocation,
-                            to: randomPoint,
+                            from: userLocation.coordinate,
+                            to: destination,
                             viewModel: viewModel
                         )
                     }
@@ -152,11 +205,26 @@ struct ControlPanelView: View {
                     .frame(maxWidth: .infinity)
             }
             .buttonStyle(.borderedProminent)
-            .disabled(appState.selectedResort == nil)
+            .disabled(appState.selectedResort == nil || appState.locationManager.currentLocation == nil)
         }
         .padding()
         .background(.ultraThinMaterial)
         .cornerRadius(10)
+    }
+    
+    private func simulateLocation(latitude: Double, longitude: Double) {
+        // For testing in simulator, we'll just set the location directly
+        let location = CLLocation(
+            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
+            altitude: 2000, // Approximate elevation for Palisades Tahoe
+            horizontalAccuracy: 10,
+            verticalAccuracy: 10,
+            timestamp: Date()
+        )
+        
+        DispatchQueue.main.async {
+            appState.locationManager.currentLocation = location
+        }
     }
 }
 
