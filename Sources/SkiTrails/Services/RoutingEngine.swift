@@ -67,7 +67,23 @@ actor RoutingEngine {
         
         // For each lift, connect to the top of nearby runs
         for lift in resort.lifts {
+            // Skip if lift is closed or on hold
+            if lift.status == .closed || lift.status == .hold {
+                if EnvConfig.isDebugMode {
+                    print("[Graph] Skipping closed/held lift: \(lift.name)")
+                }
+                continue
+            }
+            
             for run in resort.runs {
+                // Skip if run is closed or grooming
+                if run.status != .open {
+                    if EnvConfig.isDebugMode {
+                        print("[Graph] Skipping closed run: \(run.name)")
+                    }
+                    continue
+                }
+                
                 // Calculate distance between lift top and run top
                 let liftLocation = CLLocation(
                     latitude: lift.latitude,
@@ -84,15 +100,19 @@ actor RoutingEngine {
                     edges.append(Edge(
                         from: lift.id,
                         to: "\(run.id)_top",
-                        weight: distance,
+                        weight: calculateWeight(lift: lift, run: run),
                         type: .liftToRun
                     ))
                 }
             }
         }
         
-        // For each run, connect its top to its bottom
+        // For each run, connect its top to its bottom (only if run is open)
         for run in resort.runs {
+            if run.status != .open {
+                continue
+            }
+            
             let topNodeId = "\(run.id)_top"
             let bottomNodeId = "\(run.id)_bottom"
             
@@ -104,14 +124,22 @@ actor RoutingEngine {
             ))
         }
         
-        // For each run's bottom, connect to nearby lift bases
+        // For each run's bottom, connect to nearby lift bases (only if both run and lift are open)
         for run in resort.runs {
+            if run.status != .open {
+                continue
+            }
+            
             let runBottomLocation = CLLocation(
                 latitude: run.bottomLatitude,
                 longitude: run.bottomLongitude
             )
             
             for lift in resort.lifts {
+                if lift.status == .closed || lift.status == .hold {
+                    continue
+                }
+                
                 let liftLocation = CLLocation(
                     latitude: lift.latitude,
                     longitude: lift.longitude
@@ -123,7 +151,7 @@ actor RoutingEngine {
                     edges.append(Edge(
                         from: "\(run.id)_bottom",
                         to: lift.id,
-                        weight: distance,
+                        weight: calculateWeight(lift: lift, run: run),
                         type: .connection
                     ))
                 }
@@ -355,20 +383,25 @@ actor RoutingEngine {
     }
     
     private func calculateWeight(lift: Lift, run: Run) -> Double {
-        // Base weight is the length of the run
+        // Base weight is the distance or length
         var weight = run.length
         
-        // Add penalties
-        if lift.status != .open {
+        // Add penalties for various conditions
+        switch lift.status {
+        case .hold:
+            weight *= 5 // Significant penalty for lifts on hold
+        case .scheduled:
+            weight *= 2 // Minor penalty for lifts not yet open
+        case .closed:
             weight *= 1000 // Effectively exclude closed lifts
+        case .open:
+            // No penalty for open lifts
+            break
         }
         
-        if run.status != .open {
-            weight *= 1000 // Effectively exclude closed runs
-        }
-        
+        // Add wait time penalty if available
         if let waitTime = lift.waitTime {
-            weight += Double(waitTime) * 10 // Factor in lift wait times
+            weight += Double(waitTime) * 10 // 10 meters per minute of wait time
         }
         
         return weight

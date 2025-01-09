@@ -2,6 +2,8 @@ import Foundation
 
 /// A utility struct that provides type-safe access to environment variables
 enum EnvConfig {
+    static let isDebugMode = true // TODO: Set based on build configuration
+    
     // MARK: - Map Rendering
     static var mapboxAccessToken: String {
         ProcessInfo.processInfo.environment["MAPBOX_ACCESS_TOKEN"] ?? ""
@@ -71,10 +73,6 @@ enum EnvConfig {
     }
     
     // MARK: - App Configuration
-    static var isDebugMode: Bool {
-        ProcessInfo.processInfo.environment["DEBUG_MODE"]?.lowercased() == "true"
-    }
-    
     static var isDevelopment: Bool {
         ProcessInfo.processInfo.environment["APP_ENV"]?.lowercased() == "development"
     }

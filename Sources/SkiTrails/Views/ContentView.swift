@@ -23,7 +23,7 @@ struct ContentView: View {
                     if let activeRoute = appState.activeRoute {
                         RouteOverlayView(route: activeRoute)
                     } else {
-                        ControlPanelView()
+                        ControlPanelView(viewModel: viewModel)
                     }
                 }
                 .padding()
@@ -86,6 +86,7 @@ struct TopBarView: View {
 
 struct ControlPanelView: View {
     @EnvironmentObject private var appState: AppState
+    @ObservedObject var viewModel: ContentViewModel
     
     var body: some View {
         VStack(spacing: 12) {
@@ -102,6 +103,15 @@ struct ControlPanelView: View {
                 }
                 .buttonStyle(.bordered)
                 .tint(.orange)
+                
+                Button(action: {
+                    appState.locationManager.startUpdatingLocation()
+                }) {
+                    Label("Locate Me", systemName: "location.fill")
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(.blue)
             }
             
             // Difficulty Filter
@@ -130,7 +140,11 @@ struct ControlPanelView: View {
                             latitude: baseLocation.latitude + 0.01,
                             longitude: baseLocation.longitude + 0.01
                         )
-                        await appState.startNavigation(from: baseLocation, to: randomPoint)
+                        await appState.startNavigation(
+                            from: baseLocation,
+                            to: randomPoint,
+                            viewModel: viewModel
+                        )
                     }
                 }
             }) {
@@ -252,20 +266,127 @@ struct ErrorAlertView: View {
 // MARK: - MapView
 struct MapView: UIViewRepresentable {
     @ObservedObject var viewModel: ContentViewModel
+    @EnvironmentObject private var appState: AppState
     
     func makeUIView(context: Context) -> MapView {
         let mapView = MapView(frame: .zero)
         mapView.mapboxMap.loadStyleURI(.outdoors)
         
         // Configure the map view
-        // Add annotations for lifts and runs
-        // Set up gesture recognizers
+        mapView.ornaments.options.compass.visibility = .visible
+        mapView.ornaments.options.scaleBar.visibility = .visible
+        
+        // Enable user location tracking with custom puck
+        let locationOptions = LocationOptions()
+        locationOptions.puckType = .puck2D(
+            Puck2DConfiguration(
+                topImage: nil,
+                bearingImage: nil,
+                shadowImage: nil,
+                scale: 1.0,
+                showsAccuracyRing: true
+            )
+        )
+        mapView.location.options = locationOptions
+        
+        // Set initial camera position
+        let cameraOptions = CameraOptions(
+            center: viewModel.mapCamera.center,
+            zoom: viewModel.mapCamera.zoom,
+            bearing: viewModel.mapCamera.bearing,
+            pitch: viewModel.mapCamera.pitch
+        )
+        mapView.mapboxMap.setCamera(to: cameraOptions)
         
         return mapView
     }
     
     func updateUIView(_ mapView: MapView, context: Context) {
-        // Update map annotations and overlays based on viewModel state
+        // Update camera if we have a user location
+        if let location = appState.locationManager.currentLocation {
+            // Only update camera if it's significantly different
+            let currentCenter = mapView.mapboxMap.cameraState.center
+            let distance = location.coordinate.distance(to: currentCenter)
+            
+            if distance > 100 { // Update if more than 100 meters away
+                let cameraOptions = CameraOptions(
+                    center: location.coordinate,
+                    zoom: 15,
+                    bearing: 0,
+                    pitch: 45
+                )
+                mapView.mapboxMap.setCamera(to: cameraOptions)
+            }
+        }
+        
+        // Update route line if we have coordinates
+        if !viewModel.routeCoordinates.isEmpty {
+            updateRouteLine(on: mapView)
+            
+            // Focus camera on the entire route
+            let coordinates = viewModel.routeCoordinates
+            if coordinates.count > 1 {
+                let bounds = coordinates.reduce(CoordinateBounds(
+                    southwest: coordinates[0],
+                    northeast: coordinates[0]
+                )) { bounds, coordinate in
+                    bounds.extend(coordinate)
+                }
+                
+                // Add some padding around the route
+                let camera = mapView.mapboxMap.camera(
+                    for: bounds,
+                    padding: UIEdgeInsets(top: 100, left: 100, bottom: 100, right: 100),
+                    bearing: 0,
+                    pitch: 45
+                )
+                mapView.mapboxMap.setCamera(to: camera)
+            }
+        } else {
+            // Remove route line if no coordinates
+            removeRouteLine(from: mapView)
+        }
+    }
+    
+    private func updateRouteLine(on mapView: MapView) {
+        let coordinates = viewModel.routeCoordinates
+        let lineString = LineString(coordinates)
+        
+        let source = GeoJSONSource()
+        source.data = .feature(Feature(geometry: .lineString(lineString)))
+        
+        let sourceID = "route-source"
+        let layerID = "route-layer"
+        
+        if mapView.mapboxMap.style.sourceExists(withId: sourceID) {
+            try? mapView.mapboxMap.style.updateGeoJSONSource(
+                withId: sourceID,
+                geoJSON: .feature(Feature(geometry: .lineString(lineString)))
+            )
+        } else {
+            try? mapView.mapboxMap.style.addSource(source, id: sourceID)
+            
+            var layer = LineLayer(id: layerID)
+            layer.source = sourceID
+            layer.lineColor = .constant(StyleColor(.systemBlue))
+            layer.lineWidth = .constant(4)
+            layer.lineCap = .constant(.round)
+            layer.lineJoin = .constant(.round)
+            try? mapView.mapboxMap.style.addLayer(layer)
+        }
+    }
+    
+    private func removeRouteLine(from mapView: MapView) {
+        let sourceID = "route-source"
+        let layerID = "route-layer"
+        
+        if mapView.mapboxMap.style.layerExists(withId: layerID) {
+            try? mapView.mapboxMap.style.removeLayer(withId: layerID)
+        }
+        
+        if mapView.mapboxMap.style.sourceExists(withId: sourceID) {
+            try? mapView.mapboxMap.style.removeSource(withId: sourceID)
+        }
     }
 }
 
@@ -273,6 +394,7 @@ struct MapView: UIViewRepresentable {
 class ContentViewModel: ObservableObject {
     @Published var mapCamera: MapCamera = .default
     @Published var selectedPoint: MapPoint?
+    @Published var routeCoordinates: [CLLocationCoordinate2D] = []
     
     struct MapCamera {
         var center: CLLocationCoordinate2D

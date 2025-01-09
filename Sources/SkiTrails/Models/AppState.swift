@@ -6,6 +6,7 @@ import CoreLocation
 class AppState: ObservableObject {
     // MARK: - Published Properties
     
+    @Published var locationManager = LocationManager()
     @Published var selectedResort: Resort?
     @Published var selectedDifficulty: SkiDifficulty?
     @Published var isLoading = false
@@ -24,11 +25,18 @@ class AppState: ObservableObject {
     
     private var cancellables = Set<AnyCancellable>()
     private let errorHandler = ErrorHandler.shared
+    private var statusRefreshTask: Task<Void, Never>?
     
     // MARK: - Initialization
     
     init() {
         setupSubscriptions()
+        startStatusRefreshTimer()
+        locationManager.requestAuthorization()
+    }
+    
+    deinit {
+        statusRefreshTask?.cancel()
     }
     
     // MARK: - Public Methods
@@ -99,11 +107,38 @@ class AppState: ObservableObject {
         }
     }
     
+    func refreshResortStatus() async {
+        guard let resort = selectedResort else { return }
+        
+        do {
+            // Re-fetch only the lifts for now, since we have no separate runs status API
+            let updatedLifts = try await APIClient.shared.fetchLiftStatus(for: resort)
+            
+            // Merge updates
+            var updatedResort = resort
+            updatedResort.lifts = updatedLifts
+            
+            // Update state
+            selectedResort = updatedResort
+            
+            // Re-build graph so closed lifts are excluded from routing
+            await RoutingEngine.shared.buildGraph(for: updatedResort)
+            
+            if EnvConfig.isDebugMode {
+                print("[Status Refresh] Lifts updated at \(Date())")
+                await RoutingEngine.shared.debugPrintGraph()
+            }
+        } catch {
+            await handleError(error, context: .api(endpoint: "refreshStatus"))
+        }
+    }
+    
     // MARK: - Navigation
     
     func startNavigation(
         from startPoint: CLLocationCoordinate2D,
-        to endPoint: CLLocationCoordinate2D
+        to endPoint: CLLocationCoordinate2D,
+        viewModel: ContentViewModel
     ) async {
         setLoading(true)
         defer { setLoading(false) }
@@ -123,6 +158,15 @@ class AppState: ObservableObject {
             )
             
             activeRoute = route
+            
+            // Convert route segments to coordinates for the map
+            let routeCoordinates = route.segments.flatMap { segment in
+                segment.path.map { CLLocationCoordinate2D(
+                    latitude: $0.latitude,
+                    longitude: $0.longitude
+                )}
+            }
+            viewModel.routeCoordinates = routeCoordinates
             
         } catch {
             await handleError(
@@ -145,6 +189,25 @@ class AppState: ObservableObject {
     private func setupSubscriptions() {
         // Add Combine subscriptions for real-time updates
         // For example, periodic weather updates or lift status changes
+    }
+    
+    private func startStatusRefreshTimer() {
+        // Cancel any existing task
+        statusRefreshTask?.cancel()
+        
+        // Start a new refresh task
+        statusRefreshTask = Task {
+            while !Task.isCancelled {
+                do {
+                    // Wait 60 seconds between refreshes
+                    try await Task.sleep(nanoseconds: 60_000_000_000)
+                    await refreshResortStatus()
+                } catch {
+                    // If Task is cancelled or fails, break the loop
+                    break
+                }
+            }
+        }
     }
 }
 
