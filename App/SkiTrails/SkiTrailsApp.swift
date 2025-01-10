@@ -1,12 +1,27 @@
 import SwiftUI
 import Firebase
 import Sentry
+import SkiTrailsCore
 
 @main
 struct SkiTrailsApp: App {
-    init() {
-        // Initialize Firebase
-        FirebaseApp.configure()
+    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+
+class AppDelegate: NSObject, UIApplicationDelegate {
+    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
+        // Try to initialize Firebase if configuration exists
+        if let filePath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
+            FirebaseApp.configure()
+        } else {
+            print("Warning: GoogleService-Info.plist not found. Firebase features will be disabled.")
+        }
         
         // Initialize Sentry
         SentrySDK.start { options in
@@ -14,11 +29,7 @@ struct SkiTrailsApp: App {
             options.debug = true
             options.enableAutoSessionTracking = true
         }
-    }
-    
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-        }
+        
+        return true
     }
 } 

@@ -1,5 +1,5 @@
 import XCTest
-@testable import SkiTrails
+@testable import SkiTrailsCore
 
 final class SkiTrailsTests: XCTestCase {
     func testExample() throws {

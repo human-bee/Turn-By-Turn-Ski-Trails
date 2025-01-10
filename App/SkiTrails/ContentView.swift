@@ -1,9 +1,21 @@
 import SwiftUI
+import SkiTrailsCore
 
 struct ContentView: View {
     var body: some View {
-        Text("SkiTrails")
-            .padding()
+        ZStack {
+            Color.blue.ignoresSafeArea()
+            
+            VStack {
+                Text("SkiTrails")
+                    .font(.largeTitle)
+                    .foregroundColor(.white)
+                    .padding()
+                
+                Text("App is running!")
+                    .foregroundColor(.white)
+            }
+        }
     }
 }
 
