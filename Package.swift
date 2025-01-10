@@ -27,10 +27,7 @@ let package = Package(
                 .product(name: "FirebaseMessaging", package: "firebase-ios-sdk"),
                 .product(name: "Sentry", package: "sentry-cocoa")
             ],
-            path: "Sources/SkiTrails",
-            resources: [
-                .process("Bundle.docc")
-            ]
+            path: "Sources/SkiTrailsCore"
         ),
         .testTarget(
             name: "SkiTrailsTests",
