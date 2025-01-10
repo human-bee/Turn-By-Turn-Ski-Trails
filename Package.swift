@@ -5,22 +5,21 @@ let package = Package(
     name: "SkiTrails",
     defaultLocalization: "en",
     platforms: [
-        .iOS(.v15),
-        .macOS(.v12)
+        .iOS(.v15)
     ],
     products: [
-        .executable(
+        .library(
             name: "SkiTrails",
             targets: ["SkiTrails"]
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", from: "10.0.0"),
+        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", .upToNextMajor(from: "10.15.0")),
         .package(url: "https://github.com/firebase/firebase-ios-sdk.git", from: "10.0.0"),
         .package(url: "https://github.com/getsentry/sentry-cocoa.git", from: "8.0.0")
     ],
     targets: [
-        .executableTarget(
+        .target(
             name: "SkiTrails",
             dependencies: [
                 .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
