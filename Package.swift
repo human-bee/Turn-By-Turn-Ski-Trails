@@ -2,15 +2,15 @@
 import PackageDescription
 
 let package = Package(
-    name: "SkiTrails",
+    name: "SkiTrailsCore",
     defaultLocalization: "en",
     platforms: [
         .iOS(.v15)
     ],
     products: [
         .library(
-            name: "SkiTrails",
-            targets: ["SkiTrails"]
+            name: "SkiTrailsCore",
+            targets: ["SkiTrailsCore"]
         )
     ],
     dependencies: [
@@ -20,7 +20,7 @@ let package = Package(
     ],
     targets: [
         .target(
-            name: "SkiTrails",
+            name: "SkiTrailsCore",
             dependencies: [
                 .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
                 .product(name: "FirebaseAnalytics", package: "firebase-ios-sdk"),
@@ -31,7 +31,7 @@ let package = Package(
         ),
         .testTarget(
             name: "SkiTrailsTests",
-            dependencies: ["SkiTrails"],
+            dependencies: ["SkiTrailsCore"],
             path: "Tests/SkiTrailsTests"
         )
     ]
