@@ -1,492 +1,573 @@
 import SwiftUI
 import MapboxMaps
+import SkiTrailsCore
 
 struct ContentView: View {
     @EnvironmentObject private var appState: AppState
-    @StateObject private var viewModel = ContentViewModel()
+    @State private var selectedTab = 0
     
     var body: some View {
-        NavigationStack(path: $appState.navigationPath) {
-            ZStack {
-                // 3D Map View
-                MapView(viewModel: viewModel)
-                    .edgesIgnoringSafeArea(.all)
-                
-                // Overlay Controls
-                VStack {
-                    // Top Bar with Resort Info and Weather
-                    TopBarView(resort: appState.selectedResort)
-                    
-                    Spacer()
-                    
-                    // Bottom Controls
-                    if let activeRoute = appState.activeRoute {
-                        RouteOverlayView(route: activeRoute)
-                    } else {
-                        ControlPanelView(viewModel: viewModel)
-                    }
-                }
-                .padding()
-                
-                // Loading Overlay
-                if appState.isLoading {
-                    LoadingView()
-                }
-                
-                // Error Alert
-                if let error = appState.error {
-                    ErrorAlertView(error: error) {
-                        appState.clearError()
-                    }
-                }
+        if #available(iOS 16.0, *) {
+            NavigationStack {
+                mainContent
             }
-            .navigationDestination(for: Route.self) { route in
-                RouteDetailView(route: route)
+        } else {
+            NavigationView {
+                mainContent
             }
+            .navigationViewStyle(.stack)
+        }
+    }
+    
+    private var mainContent: some View {
+        TabView(selection: $selectedTab) {
+            ResortListView()
+                .tabItem {
+                    Label("Resorts", systemImage: "mountain.2")
+                }
+                .tag(0)
+            
+            MapView()
+                .tabItem {
+                    Label("Map", systemImage: "map")
+                }
+                .tag(1)
+            
+            TrailStatusView()
+                .tabItem {
+                    Label("Trails", systemImage: "figure.skiing.downhill")
+                }
+                .tag(2)
+            
+            NavigationView()
+                .tabItem {
+                    Label("Navigation", systemImage: "location.north.circle")
+                }
+                .tag(3)
         }
     }
 }
 
-// MARK: - Supporting Views
-struct TopBarView: View {
-    let resort: Resort?
-    
-    var body: some View {
-        HStack {
-            if let resort = resort {
-                VStack(alignment: .leading) {
-                    Text(resort.name)
-                        .font(.headline)
-                    if let weather = resort.weather {
-                        HStack {
-                            Text("\(Int(weather.temperature))°")
-                            Text("Snow: \(Int(weather.snowDepth))cm")
-                        }
-                        .font(.subheadline)
-                    }
-                }
-            } else {
-                Text("Select a Resort")
-                    .font(.headline)
-            }
-            
-            Spacer()
-            
-            Button(action: {
-                // Open settings/filters
-            }) {
-                Image(systemName: "slider.horizontal.3")
-            }
-        }
-        .padding()
-        .background(.ultraThinMaterial)
-        .cornerRadius(10)
-    }
-}
-
-struct ControlPanelView: View {
+struct ResortListView: View {
+    @StateObject private var viewModel = ResortViewModel()
     @EnvironmentObject private var appState: AppState
-    @ObservedObject var viewModel: ContentViewModel
-    @State private var showDebugPanel = false
     
     var body: some View {
-        VStack(spacing: 12) {
-            // Debug Controls (only in debug mode)
-            if EnvConfig.isDebugMode {
-                Button(action: {
-                    // Load Palisades Tahoe as a test resort
-                    Task {
-                        await appState.loadResort(id: "palisades")
-                    }
-                }) {
-                    Label("Load Test Resort", systemName: "arrow.clockwise")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.orange)
-                
-                Button(action: {
-                    showDebugPanel.toggle()
-                }) {
-                    Label("Debug Controls", systemName: "ladybug.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.purple)
-                
-                if showDebugPanel {
-                    VStack(spacing: 8) {
-                        Text("Location Simulation")
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                        
-                        // Base Location (Palisades Tahoe)
-                        Button(action: {
-                            simulateLocation(latitude: 39.1911, longitude: -120.2356)
-                        }) {
-                            Label("Base Lodge", systemName: "house.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.blue)
-                        
-                        // Top of KT-22
-                        Button(action: {
-                            simulateLocation(latitude: 39.1967, longitude: -120.2385)
-                        }) {
-                            Label("KT-22 Peak", systemName: "mountain.2.fill")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.bordered)
-                        .tint(.blue)
-                        
-                        // Current Location Info
-                        if let location = appState.locationManager.currentLocation {
-                            Text("Current Location:")
-                                .font(.caption)
-                            Text(String(format: "Lat: %.4f", location.coordinate.latitude))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(String(format: "Lon: %.4f", location.coordinate.longitude))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(String(format: "Accuracy: ±%.0fm", location.horizontalAccuracy))
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                        }
-                    }
-                    .padding(.vertical, 8)
-                    .background(Color.black.opacity(0.1))
-                    .cornerRadius(8)
-                }
-                
-                Button(action: {
-                    appState.locationManager.startUpdatingLocation()
-                }) {
-                    Label("Locate Me", systemName: "location.fill")
-                        .frame(maxWidth: .infinity)
-                }
-                .buttonStyle(.bordered)
-                .tint(.blue)
-            }
-            
-            // Difficulty Filter
-            HStack {
-                ForEach(SkiDifficulty.allCases, id: \.self) { difficulty in
-                    DifficultyButton(
-                        difficulty: difficulty,
-                        isSelected: appState.selectedDifficulty == difficulty
-                    ) {
-                        appState.selectedDifficulty = difficulty
+        Group {
+            if viewModel.isLoading {
+                ProgressView()
+            } else {
+                List {
+                    ForEach(appState.resorts) { resort in
+                        ResortRowView(resort: resort)
+                            .onTapGesture {
+                                viewModel.selectResort(resort)
+                            }
                     }
                 }
             }
-            
-            // Navigation Button
-            Button(action: {
-                // Start navigation mode
-                if let resort = appState.selectedResort,
-                   let userLocation = appState.locationManager.currentLocation {
-                    Task {
-                        // Navigate from current location to KT-22 peak
-                        let destination = CLLocationCoordinate2D(
-                            latitude: 39.1967,
-                            longitude: -120.2385
-                        )
-                        await appState.startNavigation(
-                            from: userLocation.coordinate,
-                            to: destination,
-                            viewModel: viewModel
-                        )
-                    }
-                }
-            }) {
-                Label("Start Navigation", systemName: "location.fill")
-                    .frame(maxWidth: .infinity)
-            }
-            .buttonStyle(.borderedProminent)
-            .disabled(appState.selectedResort == nil || appState.locationManager.currentLocation == nil)
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .cornerRadius(10)
-    }
-    
-    private func simulateLocation(latitude: Double, longitude: Double) {
-        // For testing in simulator, we'll just set the location directly
-        let location = CLLocation(
-            coordinate: CLLocationCoordinate2D(latitude: latitude, longitude: longitude),
-            altitude: 2000, // Approximate elevation for Palisades Tahoe
-            horizontalAccuracy: 10,
-            verticalAccuracy: 10,
-            timestamp: Date()
-        )
-        
-        DispatchQueue.main.async {
-            appState.locationManager.currentLocation = location
+        .navigationTitle("Ski Resorts")
+        .task {
+            await appState.loadResorts()
+        }
+        .alert(
+            "Error",
+            isPresented: Binding(
+                get: { viewModel.error != nil },
+                set: { if !$0 { viewModel.error = nil } }
+            ),
+            presenting: viewModel.error
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text(error.localizedDescription)
         }
     }
 }
 
-struct DifficultyButton: View {
-    let difficulty: SkiDifficulty
-    let isSelected: Bool
-    let action: () -> Void
-    
-    var body: some View {
-        Button(action: action) {
-            Circle()
-                .fill(difficulty.color)
-                .frame(width: 30, height: 30)
-                .overlay {
-                    if isSelected {
-                        Circle()
-                            .strokeBorder(.white, lineWidth: 2)
-                    }
-                }
-        }
-    }
-}
-
-struct RouteOverlayView: View {
-    let route: Route
+struct ResortRowView: View {
+    let resort: Resort
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            Text("Current Route")
+            Text(resort.name)
                 .font(.headline)
             
             HStack {
-                Label("\(Int(route.totalDistance))m", systemName: "ruler")
-                Spacer()
-                Label(formatDuration(route.estimatedTime), systemName: "clock")
+                Image(systemName: "snow")
+                Text("Base: \(resort.snowDepth.base)″")
+                Text("•")
+                Text("New: \(resort.snowDepth.newSnow)″")
             }
             .font(.subheadline)
+            .foregroundColor(.secondary)
             
-            Button("End Navigation") {
-                // End navigation mode
+            HStack {
+                StatusIndicator(
+                    count: resort.liftStatus.open,
+                    total: resort.liftStatus.total,
+                    type: "Lifts"
+                )
+                
+                Spacer()
+                
+                StatusIndicator(
+                    count: resort.runStatus.open,
+                    total: resort.runStatus.total,
+                    type: "Runs"
+                )
             }
-            .buttonStyle(.borderedProminent)
-            .tint(.red)
+            .padding(.top, 4)
         }
-        .padding()
-        .background(.ultraThinMaterial)
-        .cornerRadius(10)
-    }
-    
-    private func formatDuration(_ timeInterval: TimeInterval) -> String {
-        let formatter = DateComponentsFormatter()
-        formatter.allowedUnits = [.hour, .minute]
-        formatter.unitsStyle = .abbreviated
-        return formatter.string(from: timeInterval) ?? ""
+        .padding(.vertical, 8)
     }
 }
 
-struct LoadingView: View {
-    var body: some View {
-        ZStack {
-            Color.black.opacity(0.4)
-            ProgressView()
-                .progressViewStyle(.circular)
-                .tint(.white)
-        }
-        .ignoresSafeArea()
-    }
-}
-
-struct ErrorAlertView: View {
-    let error: Error
-    let dismissAction: () -> Void
+struct StatusIndicator: View {
+    let count: Int
+    let total: Int
+    let type: String
     
     var body: some View {
-        VStack {
-            Spacer()
+        HStack(spacing: 4) {
+            Circle()
+                .fill(count > 0 ? .green : .red)
+                .frame(width: 8, height: 8)
             
-            VStack(spacing: 16) {
-                Image(systemName: "exclamationmark.triangle.fill")
-                    .font(.largeTitle)
-                    .foregroundColor(.red)
-                
-                Text("Error")
-                    .font(.headline)
-                
-                Text(error.localizedDescription)
-                    .font(.subheadline)
-                    .multilineTextAlignment(.center)
-                
-                Button("Dismiss") {
-                    dismissAction()
-                }
-                .buttonStyle(.borderedProminent)
-            }
-            .padding()
-            .background(.ultraThinMaterial)
-            .cornerRadius(10)
-            .padding()
-            
-            Spacer()
+            Text("\(count)/\(total) \(type)")
+                .font(.caption)
+                .foregroundColor(.secondary)
         }
-        .background(Color.black.opacity(0.4))
-        .ignoresSafeArea()
     }
 }
 
-// MARK: - MapView
-struct MapView: UIViewRepresentable {
-    @ObservedObject var viewModel: ContentViewModel
-    @EnvironmentObject private var appState: AppState
+struct MapView: View {
+    @StateObject private var viewModel = MapViewModel()
+    
+    // Heavenly Mountain Resort coordinates
+    private let heavenlyCoordinates = CLLocationCoordinate2D(
+        latitude: 38.9353,
+        longitude: -119.9400
+    )
+    
+    var body: some View {
+        MapboxMapView(viewModel: viewModel)
+            .onAppear {
+                viewModel.setCamera(
+                    center: heavenlyCoordinates,
+                    zoom: 13,
+                    bearing: 0,
+                    pitch: 60
+                )
+            }
+            .navigationTitle("Resort Map")
+    }
+}
+
+struct MapboxMapView: UIViewRepresentable {
+    let initialCoordinates: CLLocationCoordinate2D
+    let initialZoom: Double
+    let initialPitch: Double
+    let initialBearing: Double
     
     func makeUIView(context: Context) -> MapView {
-        let mapView = MapView(frame: .zero)
-        mapView.mapboxMap.loadStyleURI(.outdoors)
+        let accessToken: String
+        do {
+            accessToken = try MapConfig.getMapboxAccessToken()
+        } catch {
+            fatalError("Mapbox access token not configured: \(error.localizedDescription)")
+        }
         
-        // Configure the map view
-        mapView.ornaments.options.compass.visibility = .visible
-        mapView.ornaments.options.scaleBar.visibility = .visible
-        
-        // Enable user location tracking with custom puck
-        let locationOptions = LocationOptions()
-        locationOptions.puckType = .puck2D(
-            Puck2DConfiguration(
-                topImage: nil,
-                bearingImage: nil,
-                shadowImage: nil,
-                scale: 1.0,
-                showsAccuracyRing: true
-            )
+        let options = MapInitOptions(
+            resourceOptions: ResourceOptions(accessToken: accessToken),
+            cameraOptions: CameraOptions(
+                center: initialCoordinates,
+                zoom: initialZoom,
+                pitch: initialPitch,
+                bearing: initialBearing
+            ),
+            styleURI: .outdoors
         )
-        mapView.location.options = locationOptions
         
-        // Set initial camera position
-        let cameraOptions = CameraOptions(
-            center: viewModel.mapCamera.center,
-            zoom: viewModel.mapCamera.zoom,
-            bearing: viewModel.mapCamera.bearing,
-            pitch: viewModel.mapCamera.pitch
-        )
-        mapView.mapboxMap.setCamera(to: cameraOptions)
+        let mapView = MapView(frame: .zero, mapInitOptions: options)
+        
+        // Configure gestures
+        mapView.gestures.options.rotateEnabled = true
+        mapView.gestures.options.pinchZoomEnabled = true
+        mapView.gestures.options.pitchEnabled = true
+        mapView.gestures.options.doubleTapToZoomInEnabled = true
+        mapView.gestures.options.doubleTouchToZoomOutEnabled = true
+        mapView.gestures.options.quickZoomEnabled = true
+        
+        // Set zoom constraints for appropriate mountain viewing
+        mapView.mapboxMap.setCamera(to: CameraOptions(
+            minZoom: 12,
+            maxZoom: 18,
+            minPitch: 0,
+            maxPitch: 85
+        ))
+        
+        // Configure the map style after loading
+        mapView.mapboxMap.onStyleLoaded.observe { _ in
+            try? self.configureMapStyle(mapView)
+        }
         
         return mapView
     }
     
-    func updateUIView(_ mapView: MapView, context: Context) {
-        // Update camera if we have a user location
-        if let location = appState.locationManager.currentLocation {
-            // Only update camera if it's significantly different
-            let currentCenter = mapView.mapboxMap.cameraState.center
-            let distance = location.coordinate.distance(to: currentCenter)
-            
-            if distance > 100 { // Update if more than 100 meters away
-                let cameraOptions = CameraOptions(
-                    center: location.coordinate,
-                    zoom: 15,
-                    bearing: 0,
-                    pitch: 45
-                )
-                mapView.mapboxMap.setCamera(to: cameraOptions)
-            }
-        }
+    func updateUIView(_ uiView: MapView, context: Context) {
+        // Update view if needed
+    }
+    
+    private func configureMapStyle(_ mapView: MapView) throws {
+        let style = mapView.mapboxMap.style
         
-        // Update route line if we have coordinates
-        if !viewModel.routeCoordinates.isEmpty {
-            updateRouteLine(on: mapView)
-            
-            // Focus camera on the entire route
-            let coordinates = viewModel.routeCoordinates
-            if coordinates.count > 1 {
-                let bounds = coordinates.reduce(CoordinateBounds(
-                    southwest: coordinates[0],
-                    northeast: coordinates[0]
-                )) { bounds, coordinate in
-                    bounds.extend(coordinate)
+        // Add terrain source and configure 3D terrain
+        try style.addSource(TerrainSource(id: "terrain", configuration: .init(url: "mapbox://mapbox.mapbox-terrain-dem-v1")))
+        try style.setTerrain(Terrain(sourceId: "terrain", configuration: .init(exaggeration: 1.5)))
+        
+        // Add resort boundary
+        try style.addSource(GeoJSONSource(id: "resort-boundary", configuration: .init(data: HeavenlyData.boundaries)))
+        try style.addLayer(FillLayer(id: "resort-boundary-layer", source: "resort-boundary", configuration: .init(
+            fillColor: .constant(.init(UIColor.systemGray.withAlphaComponent(0.1))),
+            fillOutlineColor: .constant(.init(UIColor.systemGray))
+        )))
+        
+        // Add ski runs with difficulty-based styling
+        try style.addSource(GeoJSONSource(id: "ski-runs", configuration: .init(data: HeavenlyData.runs)))
+        
+        // Add layers for each difficulty level
+        try style.addLayer(FillLayer(id: "ski-runs-green", source: "ski-runs", configuration: .init(
+            filter: .eq(.property("difficulty"), .string("green")),
+            fillColor: .constant(.init(UIColor.systemGreen.withAlphaComponent(0.3))),
+            fillOutlineColor: .constant(.init(UIColor.systemGreen))
+        )))
+        
+        try style.addLayer(FillLayer(id: "ski-runs-blue", source: "ski-runs", configuration: .init(
+            filter: .eq(.property("difficulty"), .string("blue")),
+            fillColor: .constant(.init(UIColor.systemBlue.withAlphaComponent(0.3))),
+            fillOutlineColor: .constant(.init(UIColor.systemBlue))
+        )))
+        
+        try style.addLayer(FillLayer(id: "ski-runs-black", source: "ski-runs", configuration: .init(
+            filter: .eq(.property("difficulty"), .string("black")),
+            fillColor: .constant(.init(UIColor.black.withAlphaComponent(0.3))),
+            fillOutlineColor: .constant(.init(UIColor.black))
+        )))
+        
+        // Add lifts with type-based styling
+        try style.addSource(GeoJSONSource(id: "ski-lifts", configuration: .init(data: HeavenlyData.lifts)))
+        
+        // Style for gondolas
+        try style.addLayer(LineLayer(id: "ski-lifts-gondola", source: "ski-lifts", configuration: .init(
+            filter: .eq(.property("type"), .string("gondola")),
+            lineColor: .constant(.init(UIColor.red)),
+            lineWidth: .constant(3),
+            lineDasharray: .constant([2, 1])
+        )))
+        
+        // Style for chairlifts
+        try style.addLayer(LineLayer(id: "ski-lifts-chairlift", source: "ski-lifts", configuration: .init(
+            filter: .eq(.property("type"), .string("chairlift")),
+            lineColor: .constant(.init(UIColor.red)),
+            lineWidth: .constant(2)
+        )))
+        
+        // Enhance atmosphere effect for mountain visualization
+        try style.setAtmosphere(Atmosphere(
+            color: UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1.0),
+            highColor: UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1.0),
+            horizonBlend: 0.4,
+            spaceColor: UIColor(red: 0.05, green: 0.05, blue: 0.1, alpha: 1.0),
+            starIntensity: 0.0
+        ))
+        
+        // Add sky layer for better 3D effect
+        try style.setSky(Sky(
+            atmosphereColor: UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1.0),
+            atmosphereSun: [0.0, 0.0],
+            atmosphereSunIntensity: 15.0,
+            gradient: [
+                0.0: UIColor(red: 0.8, green: 0.9, blue: 1.0, alpha: 1.0),
+                0.5: UIColor(red: 0.7, green: 0.8, blue: 1.0, alpha: 1.0),
+                1.0: UIColor(red: 0.6, green: 0.7, blue: 1.0, alpha: 1.0)
+            ]
+        ))
+    }
+}
+
+struct TrailStatusView: View {
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var viewModel = ResortViewModel()
+    
+    var body: some View {
+        Group {
+            if viewModel.isLoading {
+                ProgressView()
+            } else if let resort = viewModel.selectedResort {
+                List {
+                    Section("Lifts") {
+                        ForEach(resort.lifts) { lift in
+                            LiftStatusRow(lift: lift)
+                        }
+                    }
+                    
+                    Section("Runs") {
+                        ForEach(resort.runs) { run in
+                            RunStatusRow(run: run)
+                        }
+                    }
                 }
-                
-                // Add some padding around the route
-                let camera = mapView.mapboxMap.camera(
-                    for: bounds,
-                    padding: UIEdgeInsets(top: 100, left: 100, bottom: 100, right: 100),
-                    bearing: 0,
-                    pitch: 45
+            } else {
+                ContentUnavailableView(
+                    "No Resort Selected",
+                    systemImage: "mountain.2",
+                    description: Text("Select a resort to view trail status")
                 )
-                mapView.mapboxMap.setCamera(to: camera)
             }
-        } else {
-            // Remove route line if no coordinates
-            removeRouteLine(from: mapView)
         }
-    }
-    
-    private func updateRouteLine(on mapView: MapView) {
-        let coordinates = viewModel.routeCoordinates
-        let lineString = LineString(coordinates)
-        
-        let source = GeoJSONSource()
-        source.data = .feature(Feature(geometry: .lineString(lineString)))
-        
-        let sourceID = "route-source"
-        let layerID = "route-layer"
-        
-        if mapView.mapboxMap.style.sourceExists(withId: sourceID) {
-            try? mapView.mapboxMap.style.updateGeoJSONSource(
-                withId: sourceID,
-                geoJSON: .feature(Feature(geometry: .lineString(lineString)))
-            )
-        } else {
-            try? mapView.mapboxMap.style.addSource(source, id: sourceID)
-            
-            var layer = LineLayer(id: layerID)
-            layer.source = sourceID
-            layer.lineColor = .constant(StyleColor(.systemBlue))
-            layer.lineWidth = .constant(4)
-            layer.lineCap = .constant(.round)
-            layer.lineJoin = .constant(.round)
-            try? mapView.mapboxMap.style.addLayer(layer)
-        }
-    }
-    
-    private func removeRouteLine(from mapView: MapView) {
-        let sourceID = "route-source"
-        let layerID = "route-layer"
-        
-        if mapView.mapboxMap.style.layerExists(withId: layerID) {
-            try? mapView.mapboxMap.style.removeLayer(withId: layerID)
-        }
-        
-        if mapView.mapboxMap.style.sourceExists(withId: sourceID) {
-            try? mapView.mapboxMap.style.removeSource(withId: sourceID)
+        .navigationTitle("Trail Status")
+        .refreshable {
+            if let resort = viewModel.selectedResort {
+                await viewModel.refreshResortStatus(resort.id)
+            }
         }
     }
 }
 
-// MARK: - ViewModel
-class ContentViewModel: ObservableObject {
-    @Published var mapCamera: MapCamera = .default
-    @Published var selectedPoint: MapPoint?
-    @Published var routeCoordinates: [CLLocationCoordinate2D] = []
+struct LiftStatusRow: View {
+    let lift: Lift
     
-    struct MapCamera {
-        var center: CLLocationCoordinate2D
-        var zoom: Double
-        var bearing: Double
-        var pitch: Double
-        
-        static let `default` = MapCamera(
-            center: CLLocationCoordinate2D(latitude: 39.1911, longitude: -120.2356),
-            zoom: 14,
-            bearing: 0,
-            pitch: 60
-        )
-    }
-    
-    struct MapPoint: Identifiable {
-        let id: String
-        let coordinate: CLLocationCoordinate2D
-        let type: PointType
-        
-        enum PointType {
-            case lift(Lift)
-            case run(Run)
-            case waypoint
+    var body: some View {
+        HStack {
+            Text(lift.name)
+            
+            Spacer()
+            
+            StatusBadge(status: lift.status)
         }
     }
+}
+
+struct RunStatusRow: View {
+    let run: Run
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(run.name)
+                
+                HStack {
+                    DifficultyIndicator(difficulty: run.difficulty)
+                    Text("\(Int(run.length))m • \(Int(run.verticalDrop))m vert")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            StatusBadge(status: run.status)
+        }
+    }
+}
+
+struct StatusBadge: View {
+    let status: Status
+    
+    var body: some View {
+        Text(status.rawValue.capitalized)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(status.color.opacity(0.2))
+            .foregroundColor(status.color)
+            .clipShape(Capsule())
+    }
+}
+
+struct DifficultyIndicator: View {
+    let difficulty: SkiDifficulty
+    
+    var body: some View {
+        Image(systemName: difficulty.symbolName)
+            .foregroundColor(difficulty.color)
+    }
+}
+
+private extension Status {
+    var color: Color {
+        switch self {
+        case .open:
+            return .green
+        case .closed:
+            return .red
+        case .hold:
+            return .orange
+        case .scheduled:
+            return .blue
+        }
+    }
+}
+
+private extension SkiDifficulty {
+    var symbolName: String {
+        switch self {
+        case .beginner:
+            return "circle.fill"
+        case .intermediate:
+            return "square.fill"
+        case .advanced:
+            return "diamond.fill"
+        case .expert:
+            return "diamond.fill"
+        }
+    }
+    
+    var color: Color {
+        switch self {
+        case .beginner:
+            return .green
+        case .intermediate:
+            return .blue
+        case .advanced:
+            return .black
+        case .expert:
+            return .black
+        }
+    }
+}
+
+struct NavigationView: View {
+    @StateObject private var navigationViewModel = NavigationViewModel()
+    @EnvironmentObject private var appState: AppState
+    
+    var body: some View {
+        Group {
+            if navigationViewModel.isNavigating {
+                ActiveNavigationView(viewModel: navigationViewModel)
+            } else {
+                NavigationSetupView(viewModel: navigationViewModel)
+            }
+        }
+        .navigationTitle("Navigation")
+        .alert(
+            "Error",
+            isPresented: Binding(
+                get: { navigationViewModel.error != nil },
+                set: { if !$0 { navigationViewModel.error = nil } }
+            ),
+            presenting: navigationViewModel.error
+        ) { _ in
+            Button("OK", role: .cancel) {}
+        } message: { error in
+            Text(error.localizedDescription)
+        }
+    }
+}
+
+struct NavigationSetupView: View {
+    @ObservedObject var viewModel: NavigationViewModel
+    @EnvironmentObject private var appState: AppState
+    
+    var body: some View {
+        List {
+            Section("Start Point") {
+                if let location = viewModel.startPoint {
+                    LocationRow(
+                        coordinate: location,
+                        title: "Current Location",
+                        subtitle: "Tap to change"
+                    )
+                } else {
+                    Button("Set Start Point") {
+                        Task {
+                            await viewModel.setStartPoint()
+                        }
+                    }
+                }
+            }
+            
+            Section("End Point") {
+                if let location = viewModel.endPoint {
+                    LocationRow(
+                        coordinate: location,
+                        title: "Destination",
+                        subtitle: "Tap to change"
+                    )
+                } else {
+                    Button("Set End Point") {
+                        viewModel.isSelectingEndPoint = true
+                    }
+                }
+            }
+            
+            Section("Route Options") {
+                Picker("Difficulty", selection: $viewModel.difficulty) {
+                    ForEach(SkiDifficulty.allCases, id: \.self) { difficulty in
+                        HStack {
+                            DifficultyIndicator(difficulty: difficulty)
+                            Text(difficulty.description)
+                        }
+                        .tag(difficulty)
+                    }
+                }
+            }
+            
+            Section {
+                Button("Start Navigation") {
+                    Task {
+                        await viewModel.startNavigation()
+                    }
+                }
+                .disabled(!viewModel.canStartNavigation)
+            }
+        }
+        .sheet(isPresented: $viewModel.isSelectingEndPoint) {
+            MapSelectionView(
+                coordinate: $viewModel.endPoint,
+                title: "Select Destination"
+            )
+        }
+    }
+}
+
+struct LocationRow: View {
+    let coordinate: CLLocationCoordinate2D
+    let title: String
+    let subtitle: String
+    
+    var body: some View {
+        VStack(alignment: .leading) {
+            Text(title)
+                .font(.headline)
+            Text(subtitle)
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text("(\(coordinate.latitude.formatted()), \(coordinate.longitude.formatted()))")
+                .font(.caption2)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+private extension SkiDifficulty {
+    var description: String {
+        switch self {
+        case .beginner:
+            return "Beginner (Green)"
+        case .intermediate:
+            return "Intermediate (Blue)"
+        case .advanced:
+            return "Advanced (Black)"
+        case .expert:
+            return "Expert (Double Black)"
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(AppState())
 } 

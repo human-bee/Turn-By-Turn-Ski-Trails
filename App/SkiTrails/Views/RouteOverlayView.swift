@@ -1,7 +1,11 @@
+import SwiftUI
+import SkiTrailsCore
+import CoreLocation
+
 struct RouteOverlayView: View {
     let route: Route
+    @StateObject private var navigationViewModel = NavigationViewModel()
     @EnvironmentObject private var appState: AppState
-    @Environment(\.contentViewModel) private var viewModel
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
@@ -9,9 +13,9 @@ struct RouteOverlayView: View {
                 .font(.headline)
             
             HStack {
-                Label("\(Int(route.totalDistance))m", systemName: "ruler")
+                Label("\(Int(route.totalDistance))m", systemImage: "ruler")
                 Spacer()
-                Label(formatDuration(route.estimatedTime), systemName: "clock")
+                Label(formatDuration(route.estimatedTime), systemImage: "clock")
             }
             .font(.subheadline)
             
@@ -33,7 +37,9 @@ struct RouteOverlayView: View {
                     }
                     
                     Button("Recalculate Route") {
-                        recalculateRoute()
+                        Task {
+                            await recalculateRoute()
+                        }
                     }
                     .font(.caption)
                     .buttonStyle(.bordered)
@@ -44,8 +50,7 @@ struct RouteOverlayView: View {
             
             Button("End Navigation") {
                 withAnimation {
-                    appState.endNavigation()
-                    viewModel.routeCoordinates = []
+                    navigationViewModel.endNavigation()
                 }
             }
             .buttonStyle(.borderedProminent)
@@ -95,7 +100,8 @@ struct RouteOverlayView: View {
         return closedSegments.isEmpty ? nil : closedSegments
     }
     
-    private func recalculateRoute() {
+    @MainActor
+    private func recalculateRoute() async {
         guard let currentLocation = appState.locationManager.currentLocation else {
             print("[Route] Cannot recalculate - no current location")
             return
@@ -109,15 +115,12 @@ struct RouteOverlayView: View {
         }
         
         // Start a new route from current location to the original destination
-        Task {
-            await appState.startNavigation(
-                from: currentLocation.coordinate,
-                to: CLLocationCoordinate2D(
-                    latitude: lastPoint.latitude,
-                    longitude: lastPoint.longitude
-                ),
-                viewModel: viewModel
+        await navigationViewModel.startNavigation(
+            from: currentLocation.coordinate,
+            to: CLLocationCoordinate2D(
+                latitude: lastPoint.latitude,
+                longitude: lastPoint.longitude
             )
-        }
+        )
     }
 } 

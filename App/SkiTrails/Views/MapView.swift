@@ -1,52 +1,27 @@
 import SwiftUI
 import MapboxMaps
+import CoreLocation
 
-struct MapView: UIViewRepresentable {
-    @ObservedObject var viewModel: ContentViewModel
+struct MapView: View {
+    @StateObject private var viewModel = MapViewModel()
     
-    func makeUIView(context: Context) -> MapboxMaps.MapView {
-        let options = MapInitOptions(resourceOptions: ResourceOptionsManager.default.resourceOptions)
-        let mapView = MapboxMaps.MapView(frame: .zero, mapInitOptions: options)
-        
-        // Set initial camera position
-        mapView.mapboxMap.setCamera(
-            to: CameraOptions(
-                center: viewModel.mapCamera.center,
-                zoom: viewModel.mapCamera.zoom,
-                bearing: viewModel.mapCamera.bearing,
-                pitch: viewModel.mapCamera.pitch
-            )
-        )
-        
-        // Load terrain style
-        mapView.mapboxMap.loadStyleURI(.outdoors) { result in
-            switch result {
-            case .success(let style):
-                // Add terrain if available
-                if let source = style.terrain?.source {
-                    try? style.setTerrainProperties(TerrainProperties(exaggeration: 1.5, source: source))
-                }
-            case .failure(let error):
-                print("Failed to load style: \(error)")
+    // Heavenly Mountain Resort coordinates
+    private let heavenlyCoordinates = CLLocationCoordinate2D(
+        latitude: 38.9353,
+        longitude: -119.9400
+    )
+    
+    var body: some View {
+        MapboxMapView(viewModel: viewModel)
+            .onAppear {
+                viewModel.setCamera(
+                    center: heavenlyCoordinates,
+                    zoom: 13,
+                    bearing: 0,
+                    pitch: 60
+                )
             }
-        }
-        
-        return mapView
-    }
-    
-    func updateUIView(_ mapView: MapboxMaps.MapView, context: Context) {
-        // Update camera if it changed
-        mapView.camera.ease(
-            to: CameraOptions(
-                center: viewModel.mapCamera.center,
-                zoom: viewModel.mapCamera.zoom,
-                bearing: viewModel.mapCamera.bearing,
-                pitch: viewModel.mapCamera.pitch
-            ),
-            duration: 0.5
-        )
-        
-        // TODO: Update annotations for lifts and runs
-        // This will be implemented in the next iteration
+            .navigationTitle("Resort Map")
+            .edgesIgnoringSafeArea(.all)
     }
 } 

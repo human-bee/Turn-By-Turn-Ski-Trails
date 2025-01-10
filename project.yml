@@ -1,0 +1,36 @@
+name: SkiTrails
+options:
+  bundleIdPrefix: com.skitrails
+  deploymentTarget:
+    iOS: 15.0
+packages:
+  SkiTrailsCore:
+    path: .
+targets:
+  SkiTrails:
+    type: application
+    platform: iOS
+    sources: 
+      - path: App/SkiTrails
+        excludes:
+          - "Resources/Info.plist"
+    dependencies:
+      - package: SkiTrailsCore
+    settings:
+      base:
+        INFOPLIST_FILE: App/SkiTrails/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: com.skitrails.app
+        DEVELOPMENT_TEAM: ""  # Add your team ID here if you have one
+    info:
+      path: App/SkiTrails/Info.plist
+      properties:
+        CFBundleName: SkiTrails
+        CFBundleDisplayName: Ski Trails
+        CFBundlePackageType: APPL
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiredDeviceCapabilities:
+          - armv7

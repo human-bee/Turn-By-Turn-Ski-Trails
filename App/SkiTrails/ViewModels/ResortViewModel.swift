@@ -37,9 +37,8 @@ class ResortViewModel: ObservableObject {
         
         do {
             isLoading = true
-            // TODO: Implement API call to fetch updated status
-            // For now, just simulate a delay
-            try await Task.sleep(nanoseconds: 1_000_000_000)
+            let updatedResort = try await APIClient.shared.fetchResortInfo(id: resort.id)
+            selectedResort = updatedResort
             isLoading = false
         } catch {
             self.error = error
