@@ -1,10 +1,9 @@
-import Foundation
-import MapboxMaps
+@_exported import Foundation
+@_exported import SwiftUI
 
-public struct SkiTrails {
-    public init() {}
-    
-    public func initialize() {
-        // Initialize core functionality
-    }
-} 
+// Export all public types
+public typealias AppState = CoreState
+public typealias Configuration = CoreConfig
+
+// Export protocols
+public typealias AppStateManaging = CoreStateManaging 

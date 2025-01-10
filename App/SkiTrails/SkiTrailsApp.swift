@@ -5,31 +5,40 @@ import SkiTrailsCore
 
 @main
 struct SkiTrailsApp: App {
-    @UIApplicationDelegateAdaptor(AppDelegate.self) private var appDelegate
+    @StateObject private var appState = AppState()
+    
+    init() {
+        // Initialize Firebase
+        FirebaseApp.configure()
+        
+        // Initialize Sentry
+        do {
+            let dsn = try Configuration.getDSN()
+            SentrySDK.start { options in
+                options.dsn = dsn
+                options.debug = true
+                options.tracesSampleRate = 1.0
+                options.enableFileIOTracking = true
+                options.enableSwizzling = true
+            }
+        } catch let error as Configuration.Error {
+            switch error {
+            case .fileNotFound(let path):
+                print("Failed to initialize Sentry: .env file not found at \(path)")
+            case .invalidFormat:
+                print("Failed to initialize Sentry: Invalid .env file format")
+            case .missingKey(let key):
+                print("Failed to initialize Sentry: Missing key \(key) in .env file")
+            }
+        } catch {
+            print("Failed to initialize Sentry: \(error.localizedDescription)")
+        }
+    }
     
     var body: some Scene {
         WindowGroup {
             ContentView()
+                .environmentObject(appState)
         }
-    }
-}
-
-class AppDelegate: NSObject, UIApplicationDelegate {
-    func application(_ application: UIApplication, didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
-        // Try to initialize Firebase if configuration exists
-        if let filePath = Bundle.main.path(forResource: "GoogleService-Info", ofType: "plist") {
-            FirebaseApp.configure()
-        } else {
-            print("Warning: GoogleService-Info.plist not found. Firebase features will be disabled.")
-        }
-        
-        // Initialize Sentry
-        SentrySDK.start { options in
-            options.dsn = ProcessInfo.processInfo.environment["SENTRY_DSN"] ?? ""
-            options.debug = true
-            options.enableAutoSessionTracking = true
-        }
-        
-        return true
     }
 } 
