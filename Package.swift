@@ -3,6 +3,7 @@ import PackageDescription
 
 let package = Package(
     name: "SkiTrails",
+    defaultLocalization: "en",
     platforms: [
         .iOS(.v15),
         .macOS(.v12)
@@ -29,7 +30,7 @@ let package = Package(
             ],
             path: "Sources/SkiTrails",
             resources: [
-                .process("Resources")
+                .process("Bundle.docc")
             ]
         ),
         .testTarget(
