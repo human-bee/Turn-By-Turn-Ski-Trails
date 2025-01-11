@@ -147,12 +147,16 @@ struct DifficultyIndicator: View {
     }
 }
 
-#Preview {
-    NavigationView {
-        RouteDetailView(route: .preview)
-            .environmentObject(AppState())
+#if DEBUG
+struct RouteDetailView_Previews: PreviewProvider {
+    static var previews: some View {
+        NavigationView {
+            RouteDetailView(route: .preview)
+                .environmentObject(AppState())
+        }
     }
 }
+#endif
 
 // MARK: - Preview Helpers
 extension Route {

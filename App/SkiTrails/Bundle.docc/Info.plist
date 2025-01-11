@@ -8,6 +8,8 @@
     <string>We need your location to show you where you are on the ski resort map and provide turn-by-turn navigation, even when the app is in the background.</string>
     <key>NSLocationAlwaysUsageDescription</key>
     <string>We need your location to show you where you are on the ski resort map and provide turn-by-turn navigation, even when the app is in the background.</string>
+    <key>NSCameraUsageDescription</key>
+    <string>We need camera access to show ski runs in augmented reality overlaid on the mountain.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>location</string>

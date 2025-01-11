@@ -189,7 +189,7 @@ struct ResortInfoResponse: Codable {
     struct Location: Codable {
         let latitude: Double
         let longitude: Double
-        let altitude: Double
+        let altitude: Double?
     }
     
     struct RunInfo: Codable {
@@ -245,10 +245,16 @@ struct ResortInfoResponse: Codable {
             )
         }
         
+        let domainLocation = Resort.Location(
+            latitude: location.latitude,
+            longitude: location.longitude,
+            altitude: location.altitude ?? 0 // Default to sea level if altitude is not provided
+        )
+        
         return Resort(
             id: id,
             name: name,
-            location: location,
+            location: domainLocation,
             lifts: domainLifts,
             runs: domainRuns,
             weather: nil // Will be updated by weather API

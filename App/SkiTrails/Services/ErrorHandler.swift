@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 import Sentry
 
 /// A service that handles error reporting and user-facing error messages
