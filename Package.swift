@@ -4,7 +4,7 @@ import PackageDescription
 let package = Package(
     name: "SkiTrails",
     platforms: [
-        .iOS(.v15)
+        .iOS(.v17)
     ],
     products: [
         .library(

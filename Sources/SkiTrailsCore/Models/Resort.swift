@@ -1,13 +1,37 @@
 import Foundation
 
-public struct Resort: Identifiable {
-    public let id: UUID
+public struct EntityID: Codable, Hashable, Identifiable {
+    public let rawValue: String
+    public var id: String { rawValue }
+    
+    public init(_ uuid: UUID) {
+        self.rawValue = uuid.uuidString
+    }
+    
+    public init(_ string: String) {
+        self.rawValue = string
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        self.rawValue = value
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+public struct Resort: Identifiable, Codable {
+    public let id: EntityID
     public let name: String
     public let lifts: [Lift]
     public let runs: [Run]
     public var weather: Weather?
     
-    public init(id: UUID = UUID(), name: String, lifts: [Lift], runs: [Run], weather: Weather? = nil) {
+    public init(id: EntityID, name: String, lifts: [Lift], runs: [Run], weather: Weather? = nil) {
         self.id = id
         self.name = name
         self.lifts = lifts
@@ -16,8 +40,8 @@ public struct Resort: Identifiable {
     }
 }
 
-public struct Lift: Identifiable {
-    public let id: UUID
+public struct Lift: Identifiable, Codable {
+    public let id: EntityID
     public let name: String
     public let status: Status
     public let startLocation: Location
@@ -25,7 +49,11 @@ public struct Lift: Identifiable {
     public let capacity: Int
     public let waitTime: TimeInterval?
     
-    public init(id: UUID = UUID(), name: String, status: Status = .open, startLocation: Location, endLocation: Location, capacity: Int, waitTime: TimeInterval? = nil) {
+    public enum Status: String, Codable {
+        case open, closed, onHold, maintenance
+    }
+    
+    public init(id: EntityID, name: String, status: Status, startLocation: Location, endLocation: Location, capacity: Int, waitTime: TimeInterval? = nil) {
         self.id = id
         self.name = name
         self.status = status
@@ -34,41 +62,29 @@ public struct Lift: Identifiable {
         self.capacity = capacity
         self.waitTime = waitTime
     }
-    
-    public enum Status: String {
-        case open
-        case closed
-        case onHold
-        case maintenance
-    }
 }
 
-public struct Run: Identifiable {
-    public let id: UUID
+public struct Run: Identifiable, Codable {
+    public let id: EntityID
     public let name: String
     public let difficulty: Difficulty
     public let status: Status
     public let startLocation: Location
     public let endLocation: Location
-    public let length: Double // in meters
-    public let verticalDrop: Double // in meters
+    public let length: Double
+    public let verticalDrop: Double
     
-    public init(id: UUID = UUID(), name: String, difficulty: Difficulty, status: Status = .open, startLocation: Location, endLocation: Location, length: Double, verticalDrop: Double) {
-        self.id = id
-        self.name = name
-        self.difficulty = difficulty
-        self.status = status
-        self.startLocation = startLocation
-        self.endLocation = endLocation
-        self.length = length
-        self.verticalDrop = verticalDrop
-    }
-    
-    public enum Difficulty: String, CaseIterable {
-        case beginner
-        case intermediate
-        case advanced
-        case expert
+    public enum Difficulty: String, Codable, CaseIterable, Comparable {
+        case beginner, intermediate, advanced, expert
+        
+        public static func < (lhs: Difficulty, rhs: Difficulty) -> Bool {
+            let order: [Difficulty] = [.beginner, .intermediate, .advanced, .expert]
+            guard let lhsIndex = order.firstIndex(of: lhs),
+                  let rhsIndex = order.firstIndex(of: rhs) else {
+                return false
+            }
+            return lhsIndex < rhsIndex
+        }
         
         public var color: String {
             switch self {
@@ -80,51 +96,46 @@ public struct Run: Identifiable {
         }
     }
     
-    public enum Status: String {
-        case open
-        case closed
-        case grooming
+    public enum Status: String, Codable {
+        case open, closed, grooming
+    }
+    
+    public init(id: EntityID, name: String, difficulty: Difficulty, status: Status, startLocation: Location, endLocation: Location, length: Double, verticalDrop: Double) {
+        self.id = id
+        self.name = name
+        self.difficulty = difficulty
+        self.status = status
+        self.startLocation = startLocation
+        self.endLocation = endLocation
+        self.length = length
+        self.verticalDrop = verticalDrop
     }
 }
 
-public struct Location: Equatable, Hashable {
+public struct Location: Equatable, Hashable, Codable {
     public let latitude: Double
     public let longitude: Double
-    public let elevation: Double // in meters
+    public let altitude: Double
     
-    public init(latitude: Double, longitude: Double, elevation: Double) {
+    public init(latitude: Double, longitude: Double, altitude: Double) {
         self.latitude = latitude
         self.longitude = longitude
-        self.elevation = elevation
-    }
-    
-    public func distance(to other: Location) -> Double {
-        // Basic Euclidean distance calculation - could be enhanced with actual terrain consideration
-        let latDiff = latitude - other.latitude
-        let lonDiff = longitude - other.longitude
-        let elevDiff = elevation - other.elevation
-        return sqrt(pow(latDiff, 2) + pow(lonDiff, 2) + pow(elevDiff, 2))
-    }
-    
-    public func hash(into hasher: inout Hasher) {
-        hasher.combine(latitude)
-        hasher.combine(longitude)
-        hasher.combine(elevation)
+        self.altitude = altitude
     }
 }
 
-public struct Weather {
-    public let temperature: Double // in Fahrenheit
+public struct Weather: Codable {
+    public let temperature: Double
     public let conditions: String
-    public let windSpeed: Double // in mph
-    public let visibility: Double // in miles
-    public let snowfall: Double? // in inches (last 24 hours)
+    public let snowDepth: Double
+    public let windSpeed: Double
+    public let visibility: Double
     
-    public init(temperature: Double, conditions: String, windSpeed: Double, visibility: Double, snowfall: Double? = nil) {
+    public init(temperature: Double, conditions: String, snowDepth: Double, windSpeed: Double, visibility: Double) {
         self.temperature = temperature
         self.conditions = conditions
+        self.snowDepth = snowDepth
         self.windSpeed = windSpeed
         self.visibility = visibility
-        self.snowfall = snowfall
     }
 } 

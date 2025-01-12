@@ -2,7 +2,7 @@ import Foundation
 
 /// A utility struct that provides type-safe access to environment variables
 enum EnvConfig {
-    static let isDebugMode = true // TODO: Set based on build configuration
+    static let isDebugMode = true
     
     // MARK: - Map Rendering
     static var mapboxAccessToken: String {

@@ -12,33 +12,42 @@ struct MapSelectionView: View {
         span: MKCoordinateSpan(latitudeDelta: 0.1, longitudeDelta: 0.1)
     )
     
+    private var annotations: [IdentifiableCoordinate] {
+        if let coordinate = coordinate {
+            return [IdentifiableCoordinate(coordinate: coordinate)]
+        }
+        return []
+    }
+    
     var body: some View {
         NavigationView {
-            Map(coordinateRegion: $region, interactionModes: .all) {
-                if let coordinate = coordinate {
-                    Marker("Selected Location", coordinate: coordinate)
-                }
+            Map(coordinateRegion: $region,
+                annotationItems: annotations) { item in
+                MapMarker(coordinate: item.coordinate)
             }
-            .onTapGesture { location in
-                coordinate = region.center
+            .onTapGesture { _ in
+                withAnimation {
+                    coordinate = region.center
+                }
             }
             .navigationTitle(title)
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 ToolbarItem(placement: .confirmationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
                     .disabled(coordinate == nil)
                 }
             }
         }
     }
+}
+
+private struct IdentifiableCoordinate: Identifiable {
+    let id = UUID()
+    let coordinate: CLLocationCoordinate2D
 }
 
 #Preview {

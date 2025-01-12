@@ -1,6 +1,7 @@
 import Foundation
 import CoreLocation
 import Sentry
+import SkiTrailsCore
 
 /// A service that handles error reporting and user-facing error messages
 actor ErrorHandler {
@@ -11,45 +12,55 @@ actor ErrorHandler {
     // MARK: - Error Handling
     
     func handle(_ error: Error, context: ErrorContext? = nil) {
-        // Log the error
-        print("Error: \(error.localizedDescription)")
-        
-        // Report to Sentry if in production
+        // Only send to Sentry in non-development environments
         if !EnvConfig.isDevelopment {
-            let scope = Scope()
+            let event = Event(level: .error)
+            event.message = SentryMessage(formatted: error.localizedDescription)
+            
             if let context = context {
-                scope.setContext(value: context.contextData, key: context.name)
+                event.extra = context.contextData
+                event.tags = ["context": context.name]
             }
-            SentrySDK.capture(error: error, scope: scope)
+            
+            SentrySDK.capture(event: event)
         }
+        
+        // Log locally in debug mode
+        #if DEBUG
+        print("Error: \(error.localizedDescription)")
+        if let context = context {
+            print("Context: \(context.name)")
+            print("Data: \(context.contextData)")
+        }
+        #endif
     }
     
     func handleUserFacing(_ error: Error, context: ErrorContext? = nil) -> UserFacingError {
-        // Handle the error
+        // Log the error
         handle(error, context: context)
         
         // Convert to user-facing error
         switch error {
         case let apiError as APIError:
-            return .init(
-                title: "API Error",
+            return UserFacingError(
+                title: "Connection Error",
                 message: apiError.localizedDescription,
                 recoverySuggestion: apiError.recoverySuggestion
             )
         case let routingError as RoutingError:
-            return .init(
+            return UserFacingError(
                 title: "Navigation Error",
                 message: routingError.localizedDescription,
                 recoverySuggestion: routingError.recoverySuggestion
             )
-        case let envError as EnvConfigError:
-            return .init(
-                title: "Configuration Error",
-                message: envError.localizedDescription,
-                recoverySuggestion: "Please ensure all required environment variables are set."
+        case let locationError as CLError:
+            return UserFacingError(
+                title: "Location Error",
+                message: locationError.localizedDescription,
+                recoverySuggestion: "Please check your location permissions and try again."
             )
         default:
-            return .init(
+            return UserFacingError(
                 title: "Error",
                 message: error.localizedDescription,
                 recoverySuggestion: "Please try again later."
@@ -76,7 +87,7 @@ struct ErrorContext {
     
     static func api(endpoint: String, parameters: [String: Any] = [:]) -> ErrorContext {
         ErrorContext(
-            name: "api_call",
+            name: "API Error",
             contextData: [
                 "endpoint": endpoint,
                 "parameters": parameters
@@ -85,18 +96,20 @@ struct ErrorContext {
     }
     
     static func navigation(
-        startPoint: CLLocationCoordinate2D,
-        endPoint: CLLocationCoordinate2D,
-        difficulty: SkiDifficulty
+        start: CLLocationCoordinate2D,
+        end: CLLocationCoordinate2D,
+        preferences: RoutePreferences
     ) -> ErrorContext {
         ErrorContext(
-            name: "navigation",
+            name: "Navigation Error",
             contextData: [
-                "start_latitude": startPoint.latitude,
-                "start_longitude": startPoint.longitude,
-                "end_latitude": endPoint.latitude,
-                "end_longitude": endPoint.longitude,
-                "difficulty": difficulty.rawValue
+                "start": "\(start.latitude),\(start.longitude)",
+                "end": "\(end.latitude),\(end.longitude)",
+                "preferences": [
+                    "avoidCrowds": preferences.avoidCrowds,
+                    "preferLessStrenuous": preferences.preferLessStrenuous,
+                    "maxWaitTime": preferences.maxWaitTime as Any
+                ]
             ]
         )
     }
@@ -107,14 +120,20 @@ struct ErrorContext {
 extension APIError {
     var recoverySuggestion: String? {
         switch self {
-        case .unauthorized:
-            return "Please check your API keys and try again."
+        case .invalidURL:
+            return "Please check your internet connection and try again."
+        case .invalidResponse:
+            return "The server returned an invalid response. Please try again later."
         case .networkError:
             return "Please check your internet connection and try again."
+        case .decodingError:
+            return "There was a problem processing the server response. Please try again later."
         case .serverError:
             return "The server is experiencing issues. Please try again later."
-        default:
-            return nil
+        case .unauthorized:
+            return "Please sign in again to continue."
+        case .unknown:
+            return "Please try again later."
         }
     }
 }
@@ -123,11 +142,11 @@ extension RoutingError {
     var recoverySuggestion: String? {
         switch self {
         case .graphNotInitialized:
-            return "Please wait for resort data to load and try again."
+            return "Please wait for the resort data to load and try again."
         case .noRouteFound:
-            return "Try selecting different start/end points or adjusting difficulty settings."
+            return "Try selecting different start and end points, or adjust your difficulty preferences."
         case .invalidPath:
-            return "The selected route is no longer available. Please try a different route."
+            return "The selected route is no longer valid. Please try a different route."
         }
     }
 } 

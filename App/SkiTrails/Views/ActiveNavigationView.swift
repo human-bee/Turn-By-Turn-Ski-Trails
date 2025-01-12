@@ -1,66 +1,133 @@
 import SwiftUI
+import SkiTrailsCore
 
 struct ActiveNavigationView: View {
     @ObservedObject var viewModel: NavigationViewModel
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
     
     var body: some View {
-        VStack {
-            // Map with route overlay
-            RouteOverlayView(route: viewModel.currentRoute)
-                .overlay(alignment: .topTrailing) {
-                    Button(action: viewModel.stopNavigation) {
-                        Image(systemName: "xmark.circle.fill")
-                            .font(.title)
-                            .foregroundStyle(.secondary)
-                            .padding()
-                    }
-                }
-            
-            // Navigation instructions
-            VStack(spacing: 16) {
-                if let nextInstruction = viewModel.nextInstruction {
-                    HStack {
-                        Image(systemName: nextInstruction.icon)
-                            .font(.title)
-                        Text(nextInstruction.text)
+        NavigationView {
+            Group {
+                if let route = viewModel.currentRoute {
+                    VStack(spacing: 0) {
+                        RouteOverlayView(route: route)
+                            .frame(maxHeight: .infinity)
+                        
+                        VStack(spacing: 16) {
+                            // Next instruction display
+                            if let nextInstruction = viewModel.nextInstruction {
+                                HStack {
+                                    Image(systemName: nextInstruction.icon)
+                                        .font(.title2)
+                                    Text(nextInstruction.text)
+                                        .font(.headline)
+                                }
+                                .padding()
+                                .frame(maxWidth: .infinity)
+                                .background(.ultraThinMaterial)
+                            }
+                            
+                            HStack {
+                                Label(
+                                    "\(Int(route.totalDistance)) meters",
+                                    systemImage: "ruler"
+                                )
+                                
+                                Spacer()
+                                
+                                Label(
+                                    formatDuration(route.estimatedTime),
+                                    systemImage: "clock"
+                                )
+                            }
                             .font(.headline)
+                            .padding(.horizontal)
+                            
+                            ScrollView(.horizontal, showsIndicators: false) {
+                                HStack(spacing: 12) {
+                                    ForEach(route.segments) { segment in
+                                        SegmentCard(segment: segment)
+                                    }
+                                }
+                                .padding(.horizontal)
+                            }
+                        }
+                        .padding(.vertical)
+                        .background(.ultraThinMaterial)
                     }
-                    .padding()
-                    .frame(maxWidth: .infinity)
-                    .background(.ultraThinMaterial)
-                    .cornerRadius(10)
+                } else {
+                    ProgressView()
                 }
-                
-                // Progress indicators
-                HStack {
-                    VStack(alignment: .leading) {
-                        Text("Distance")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(viewModel.remainingDistance)
-                            .font(.headline)
-                    }
-                    
-                    Spacer()
-                    
-                    VStack(alignment: .trailing) {
-                        Text("Time")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Text(viewModel.estimatedTime)
-                            .font(.headline)
-                    }
-                }
-                .padding()
-                .background(.ultraThinMaterial)
-                .cornerRadius(10)
             }
-            .padding()
+            .navigationTitle("Navigation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Stop") {
+                        viewModel.stopNavigation()
+                    }
+                }
+            }
+        }
+    }
+    
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds / 60)
+        return "\(minutes) min"
+    }
+}
+
+struct SegmentCard: View {
+    let segment: Route.Segment
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Image(systemName: iconName)
+                    .foregroundColor(iconColor)
+                
+                Text(segment.name)
+                    .font(.headline)
+            }
+            
+            if case .run(let difficulty) = segment.type {
+                DifficultyIndicator(difficulty: difficulty)
+            }
+            
+            Text("\(Int(segment.distance)) meters")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+        .padding()
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    
+    private var iconName: String {
+        switch segment.type {
+        case .run:
+            return "arrow.down.forward.circle.fill"
+        case .lift:
+            return "arrow.up.forward.circle.fill"
+        case .connection:
+            return "arrow.right.circle.fill"
+        }
+    }
+    
+    private var iconColor: Color {
+        switch segment.type {
+        case .run:
+            return .blue
+        case .lift:
+            return .green
+        case .connection:
+            return .orange
         }
     }
 }
 
 #Preview {
-    ActiveNavigationView(viewModel: NavigationViewModel())
+    let appState = AppState()
+    return ActiveNavigationView(viewModel: NavigationViewModel(appState: appState))
+        .environmentObject(appState)
 } 

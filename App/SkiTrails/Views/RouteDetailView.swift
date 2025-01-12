@@ -1,4 +1,5 @@
 import SwiftUI
+import SkiTrailsCore
 
 struct RouteDetailView: View {
     let route: Route
@@ -133,20 +134,6 @@ struct RouteSegmentRow: View {
     }
 }
 
-struct DifficultyIndicator: View {
-    let difficulty: SkiDifficulty
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(difficulty.color)
-                .frame(width: 12, height: 12)
-            Text(difficulty.rawValue)
-                .font(.subheadline)
-        }
-    }
-}
-
 #if DEBUG
 struct RouteDetailView_Previews: PreviewProvider {
     static var previews: some View {
@@ -161,21 +148,46 @@ struct RouteDetailView_Previews: PreviewProvider {
 // MARK: - Preview Helpers
 extension Route {
     static var preview: Route {
-        Route(
+        let location1 = Location(latitude: 0, longitude: 0, elevation: 0)
+        let location2 = Location(latitude: 1, longitude: 1, elevation: 100)
+        let location3 = Location(latitude: 2, longitude: 2, elevation: 0)
+        
+        return Route(
             segments: [
                 Segment(
-                    type: .lift(Lift(id: "1", name: "Express Lift", status: .open, capacity: 4, waitTime: 5)),
+                    type: .lift(Lift(
+                        id: "1",
+                        name: "Express Lift",
+                        status: .open,
+                        latitude: location1.latitude,
+                        longitude: location1.longitude,
+                        capacity: 4,
+                        waitTime: 5
+                    )),
                     path: [
-                        Segment.Location(latitude: 0, longitude: 0, altitude: 0),
-                        Segment.Location(latitude: 1, longitude: 1, altitude: 100)
+                        location1,
+                        location2
                     ],
                     distance: 1200
                 ),
                 Segment(
-                    type: .run(Run(id: "2", name: "Blue Run", difficulty: .intermediate, status: .open, length: 800, verticalDrop: 200)),
+                    type: .run(Run(
+                        id: "2",
+                        name: "Blue Run",
+                        difficulty: .intermediate,
+                        status: .open,
+                        length: 800,
+                        verticalDrop: 200,
+                        latitude: location2.latitude,
+                        longitude: location2.longitude,
+                        topLatitude: location2.latitude,
+                        topLongitude: location2.longitude,
+                        bottomLatitude: location3.latitude,
+                        bottomLongitude: location3.longitude
+                    )),
                     path: [
-                        Segment.Location(latitude: 1, longitude: 1, altitude: 100),
-                        Segment.Location(latitude: 2, longitude: 2, altitude: 0)
+                        location2,
+                        location3
                     ],
                     distance: 800
                 )

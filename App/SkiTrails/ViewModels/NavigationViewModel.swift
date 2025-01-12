@@ -1,63 +1,86 @@
 import SwiftUI
 import SkiTrailsCore
-import Combine
 import CoreLocation
 
 @MainActor
 class NavigationViewModel: ObservableObject {
-    @Published private(set) var currentRoute: Route?
-    @Published private(set) var isNavigating = false
-    @Published private(set) var isCalculating = false
-    @Published private(set) var error: Error?
+    @Published var skillLevel: Run.Difficulty = .intermediate
+    @Published var avoidCrowds = false
+    @Published var preferLessStrenuous = false
+    @Published var showRouteSelection = false
+    @Published var startPoint: Run?
+    @Published var endPoint: Run?
+    @Published var currentRoute: Route?
+    @Published var isNavigating = false
     
-    private let routingEngine: RoutingEngine
+    private let appState: AppState
     
-    init() {
-        self.routingEngine = RoutingEngine.shared
+    init(appState: AppState = .init()) {
+        self.appState = appState
     }
     
-    func startNavigation(
-        from start: CLLocationCoordinate2D,
-        to end: CLLocationCoordinate2D,
-        difficulty: SkiDifficulty = .intermediate,
-        preferences: RoutePreferences = RoutePreferences(
-            avoidCrowds: false,
-            preferLessStrenuous: false,
-            maxWaitTime: nil
+    var canStartNavigation: Bool {
+        endPoint != nil && (startPoint != nil || appState.locationManager.currentLocation != nil)
+    }
+    
+    func startNavigation() async {
+        guard let endPoint else { return }
+        
+        let preferences = RoutePreferences(
+            avoidCrowds: avoidCrowds,
+            preferLessStrenuous: preferLessStrenuous
         )
-    ) async {
-        isCalculating = true
-        error = nil
         
         do {
-            let route = try await routingEngine.findRoute(
-                from: start,
-                to: end,
-                difficulty: difficulty,
-                preferences: preferences
-            )
-            currentRoute = route
+            if let startPoint {
+                currentRoute = try await RoutingEngine.shared.findRoute(
+                    from: CLLocationCoordinate2D(
+                        latitude: startPoint.startLocation.latitude,
+                        longitude: startPoint.startLocation.longitude
+                    ),
+                    to: CLLocationCoordinate2D(
+                        latitude: endPoint.endLocation.latitude,
+                        longitude: endPoint.endLocation.longitude
+                    ),
+                    difficulty: skillLevel,
+                    preferences: preferences
+                )
+            } else if let currentLocation = appState.locationManager.currentLocation {
+                // Use current location
+                currentRoute = try await RoutingEngine.shared.findRoute(
+                    from: currentLocation.coordinate,
+                    to: CLLocationCoordinate2D(
+                        latitude: endPoint.endLocation.latitude,
+                        longitude: endPoint.endLocation.longitude
+                    ),
+                    difficulty: skillLevel,
+                    preferences: preferences
+                )
+            } else {
+                await ErrorHandler.shared.handle(NavigationError.noCurrentLocation)
+                return
+            }
+            
             isNavigating = true
         } catch {
-            self.error = error
+            await ErrorHandler.shared.handle(error)
         }
-        
-        isCalculating = false
     }
     
-    func endNavigation() {
+    func stopNavigation() {
         isNavigating = false
         currentRoute = nil
-        error = nil
+        startPoint = nil
+        endPoint = nil
     }
     
     enum NavigationError: LocalizedError {
-        case noRouteFound
+        case noCurrentLocation
         
         var errorDescription: String? {
             switch self {
-            case .noRouteFound:
-                return "No valid route found between the selected points"
+            case .noCurrentLocation:
+                return "Unable to get current location. Please ensure location services are enabled."
             }
         }
     }

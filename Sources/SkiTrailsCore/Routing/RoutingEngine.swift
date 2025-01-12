@@ -16,29 +16,25 @@ public actor RoutingEngine {
     }
     
     public func findRoute(
-        from startPoint: CLLocationCoordinate2D,
-        to endPoint: CLLocationCoordinate2D,
-        difficulty: SkiDifficulty,
-        preferences: RoutePreferences
+        from start: CLLocationCoordinate2D,
+        to end: CLLocationCoordinate2D,
+        difficulty: SkiDifficulty = .intermediate,
+        preferences: RoutePreferences = RoutePreferences()
     ) async throws -> Route {
         guard let graph = resortGraph else {
             throw RoutingError.graphNotInitialized
         }
         
-        // Find nearest nodes to start and end points
-        let startNode = findNearestNode(to: startPoint, in: graph)
-        let endNode = findNearestNode(to: endPoint, in: graph)
+        let startNode = try findNearestNode(to: start, in: graph)
+        let endNode = try findNearestNode(to: end, in: graph)
         
-        // Calculate route using A* algorithm
         let path = try findPath(
             from: startNode,
             to: endNode,
             in: graph,
-            difficulty: difficulty,
+            maxDifficulty: difficulty,
             preferences: preferences
         )
-        
-        // Convert path to route segments
         return try buildRoute(from: path, in: graph)
     }
     
@@ -49,13 +45,20 @@ public actor RoutingEngine {
         
         // Add lift nodes
         for lift in resort.lifts {
-            nodes[lift.id] = Node(
-                id: lift.id,
-                position: Resort.Location(
-                    latitude: lift.latitude,
-                    longitude: lift.longitude,
-                    altitude: resort.location.altitude
-                ),
+            // Add lift base node
+            nodes[lift.id.uuidString] = Node(
+                id: lift.id.uuidString,
+                coordinate: CLLocationCoordinate2D(latitude: lift.startLocation.latitude, longitude: lift.startLocation.longitude),
+                elevation: lift.startLocation.altitude,
+                type: .lift(lift)
+            )
+            
+            // Add lift top node
+            let topNodeId = "\(lift.id.uuidString)_top"
+            nodes[topNodeId] = Node(
+                id: topNodeId,
+                coordinate: CLLocationCoordinate2D(latitude: lift.endLocation.latitude, longitude: lift.endLocation.longitude),
+                elevation: lift.endLocation.altitude,
                 type: .lift(lift)
             )
         }
@@ -63,26 +66,20 @@ public actor RoutingEngine {
         // Add run nodes
         for run in resort.runs {
             // Add top node for the run
-            let topNodeId = "\(run.id)_top"
+            let topNodeId = "\(run.id.uuidString)_top"
             nodes[topNodeId] = Node(
                 id: topNodeId,
-                position: Resort.Location(
-                    latitude: run.topLatitude,
-                    longitude: run.topLongitude,
-                    altitude: resort.location.altitude
-                ),
+                coordinate: CLLocationCoordinate2D(latitude: run.startLocation.latitude, longitude: run.startLocation.longitude),
+                elevation: run.startLocation.altitude,
                 type: .run(run)
             )
             
             // Add bottom node for the run
-            let bottomNodeId = "\(run.id)_bottom"
+            let bottomNodeId = "\(run.id.uuidString)_bottom"
             nodes[bottomNodeId] = Node(
                 id: bottomNodeId,
-                position: Resort.Location(
-                    latitude: run.bottomLatitude,
-                    longitude: run.bottomLongitude,
-                    altitude: resort.location.altitude
-                ),
+                coordinate: CLLocationCoordinate2D(latitude: run.endLocation.latitude, longitude: run.endLocation.longitude),
+                elevation: run.endLocation.altitude,
                 type: .run(run)
             )
         }
@@ -92,65 +89,102 @@ public actor RoutingEngine {
     
     private func buildEdges(from resort: Resort) -> [Edge] {
         var edges: [Edge] = []
+        let connectionThreshold: Double = 500 // 500m connection threshold
         
-        // For each lift, connect to nearby run tops (only if both lift and run are open)
+        // Connect lift bases to lift tops
         for lift in resort.lifts {
             if lift.status != .open {
                 continue
             }
             
+            // Connect lift base to lift top
+            edges.append(Edge(
+                from: lift.id.uuidString,
+                to: "\(lift.id.uuidString)_top",
+                type: .lift,
+                distance: lift.endLocation.altitude - lift.startLocation.altitude
+            ))
+        }
+        
+        // Connect lift tops to nearby run tops and other lift bases
+        for lift in resort.lifts {
+            if lift.status != .open {
+                continue
+            }
+            
+            let liftTopLocation = CLLocation(
+                latitude: lift.endLocation.latitude,
+                longitude: lift.endLocation.longitude
+            )
+            
+            // Connect to run tops
             for run in resort.runs {
                 if run.status != .open {
                     continue
                 }
                 
-                // Connect lift to run top if they're close enough
-                let liftLocation = CLLocation(
-                    latitude: lift.latitude,
-                    longitude: lift.longitude
-                )
                 let runTopLocation = CLLocation(
-                    latitude: run.topLatitude,
-                    longitude: run.topLongitude
+                    latitude: run.startLocation.latitude,
+                    longitude: run.startLocation.longitude
                 )
                 
-                if liftLocation.distance(from: runTopLocation) < 100 { // 100m threshold
+                let distance = liftTopLocation.distance(from: runTopLocation)
+                if distance < connectionThreshold {
                     edges.append(Edge(
-                        from: lift.id,
-                        to: "\(run.id)_top",
-                        weight: calculateWeight(lift: lift, run: run),
-                        type: .liftToRun
+                        from: "\(lift.id.uuidString)_top",
+                        to: "\(run.id.uuidString)_top",
+                        type: .connection,
+                        distance: distance
+                    ))
+                }
+            }
+            
+            // Connect to other lift bases
+            for otherLift in resort.lifts {
+                if otherLift.id == lift.id || otherLift.status != .open {
+                    continue
+                }
+                
+                let otherLiftBaseLocation = CLLocation(
+                    latitude: otherLift.startLocation.latitude,
+                    longitude: otherLift.startLocation.longitude
+                )
+                
+                let distance = liftTopLocation.distance(from: otherLiftBaseLocation)
+                if distance < connectionThreshold {
+                    edges.append(Edge(
+                        from: "\(lift.id.uuidString)_top",
+                        to: otherLift.id.uuidString,
+                        type: .connection,
+                        distance: distance
                     ))
                 }
             }
         }
         
-        // For each run, connect its top to its bottom (only if run is open)
+        // Connect run tops to run bottoms
         for run in resort.runs {
             if run.status != .open {
                 continue
             }
             
-            let topNodeId = "\(run.id)_top"
-            let bottomNodeId = "\(run.id)_bottom"
-            
             edges.append(Edge(
-                from: topNodeId,
-                to: bottomNodeId,
-                weight: run.length,
-                type: .run
+                from: "\(run.id.uuidString)_top",
+                to: "\(run.id.uuidString)_bottom",
+                type: .run(difficulty: run.difficulty),
+                distance: run.length
             ))
         }
         
-        // For each run's bottom, connect to nearby lift bases (only if both run and lift are open)
+        // Connect run bottoms to lift bases
         for run in resort.runs {
             if run.status != .open {
                 continue
             }
             
             let runBottomLocation = CLLocation(
-                latitude: run.bottomLatitude,
-                longitude: run.bottomLongitude
+                latitude: run.endLocation.latitude,
+                longitude: run.endLocation.longitude
             )
             
             for lift in resort.lifts {
@@ -159,16 +193,17 @@ public actor RoutingEngine {
                 }
                 
                 let liftBaseLocation = CLLocation(
-                    latitude: lift.latitude,
-                    longitude: lift.longitude
+                    latitude: lift.startLocation.latitude,
+                    longitude: lift.startLocation.longitude
                 )
                 
-                if runBottomLocation.distance(from: liftBaseLocation) < 100 { // 100m threshold
+                let distance = runBottomLocation.distance(from: liftBaseLocation)
+                if distance < connectionThreshold {
                     edges.append(Edge(
-                        from: "\(run.id)_bottom",
-                        to: lift.id,
-                        weight: 50, // 50m walking distance
-                        type: .connection
+                        from: "\(run.id.uuidString)_bottom",
+                        to: lift.id.uuidString,
+                        type: .connection,
+                        distance: distance
                     ))
                 }
             }
@@ -177,28 +212,32 @@ public actor RoutingEngine {
         return edges
     }
     
-    private func findNearestNode(to coordinate: CLLocationCoordinate2D, in graph: ResortGraph) -> Node {
+    private func findNearestNode(to coordinate: CLLocationCoordinate2D, in graph: ResortGraph) throws -> Node {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         
-        return graph.nodes.values.min { a, b in
+        guard let nearest = graph.nodes.values.min(by: { a, b in
             let aLocation = CLLocation(
-                latitude: a.position.latitude,
-                longitude: a.position.longitude
+                latitude: a.coordinate.latitude,
+                longitude: a.coordinate.longitude
             )
             let bLocation = CLLocation(
-                latitude: b.position.latitude,
-                longitude: b.position.longitude
+                latitude: b.coordinate.latitude,
+                longitude: b.coordinate.longitude
             )
             
             return location.distance(from: aLocation) < location.distance(from: bLocation)
-        }!
+        }) else {
+            throw RoutingError.noRouteFound
+        }
+        
+        return nearest
     }
     
     private func findPath(
         from start: Node,
         to end: Node,
         in graph: ResortGraph,
-        difficulty: SkiDifficulty,
+        maxDifficulty: SkiDifficulty,
         preferences: RoutePreferences
     ) throws -> [String] {
         var openSet = Set<String>([start.id])
@@ -229,14 +268,11 @@ public actor RoutingEngine {
                 
                 // Skip if difficulty is too high
                 if case .run(let run) = node.type,
-                   !isRunAllowed(run, maxDifficulty: difficulty) {
+                   !isRunAllowed(run, maxDifficulty: maxDifficulty) {
                     continue
                 }
                 
-                let tentativeGScore = (gScore[current] ?? .infinity) + calculateEdgeWeight(
-                    edge,
-                    preferences: preferences
-                )
+                let tentativeGScore = (gScore[current] ?? .infinity) + calculateEdgeWeight(edge, node: node, preferences: preferences)
                 
                 if !openSet.contains(edge.to) {
                     openSet.insert(edge.to)
@@ -251,6 +287,36 @@ public actor RoutingEngine {
         }
         
         throw RoutingError.noRouteFound
+    }
+    
+    private func calculateEdgeWeight(_ edge: Edge, node: Node, preferences: RoutePreferences) -> Double {
+        var weight = edge.distance
+        
+        switch edge.type {
+        case .lift:
+            if preferences.avoidCrowds,
+               case .lift(let lift) = node.type,
+               let waitTime = lift.waitTime,
+               waitTime > (preferences.maxWaitTime ?? 15) {
+                // Apply significant penalty for crowded lifts
+                weight *= 2.5
+            }
+            
+        case .run:
+            if preferences.preferLessStrenuous {
+                // Apply penalty based on run length and elevation change
+                let elevationPenalty = abs(node.elevation) * 0.5
+                weight = weight * (1 + elevationPenalty/1000)
+            }
+            
+        case .connection:
+            // Apply small penalty to walking connections if preferring less strenuous routes
+            if preferences.preferLessStrenuous {
+                weight *= 1.2
+            }
+        }
+        
+        return weight
     }
     
     private func reconstructPath(cameFrom: [String: String], current: String) -> [String] {
@@ -304,12 +370,12 @@ public actor RoutingEngine {
     
     private func heuristic(from: Node, to: Node) -> Double {
         let fromLocation = CLLocation(
-            latitude: from.position.latitude,
-            longitude: from.position.longitude
+            latitude: from.coordinate.latitude,
+            longitude: from.coordinate.longitude
         )
         let toLocation = CLLocation(
-            latitude: to.position.latitude,
-            longitude: to.position.longitude
+            latitude: to.coordinate.latitude,
+            longitude: to.coordinate.longitude
         )
         
         return fromLocation.distance(from: toLocation)
@@ -330,62 +396,6 @@ public actor RoutingEngine {
         }
     }
     
-    private func calculateEdgeWeight(_ edge: Edge, preferences: RoutePreferences) -> Double {
-        var weight = edge.weight
-        
-        switch edge.type {
-        case .lift:
-            if preferences.avoidCrowds,
-               let lift = graph.nodes[edge.from]?.type.lift,
-               let waitTime = lift.waitTime,
-               waitTime > (preferences.maxWaitTime ?? 15) {
-                weight *= 2
-            }
-        case .run:
-            if preferences.preferLessStrenuous {
-                weight *= 1.5 // Penalty for longer runs when preferring less strenuous routes
-            }
-        default:
-            break
-        }
-        
-        return weight
-    }
-    
-    private func buildSegment(
-        from: Node,
-        to: Node,
-        edge: Edge
-    ) throws -> Route.Segment {
-        let type: Route.Segment.SegmentType
-        
-        switch (from.type, to.type) {
-        case (.lift(let lift), .run):
-            type = .lift(lift)
-        case (.run(let run), _):
-            type = .run(run)
-        default:
-            type = .connection
-        }
-        
-        return Route.Segment(
-            type: type,
-            path: [
-                Route.Segment.Location(
-                    latitude: from.position.latitude,
-                    longitude: from.position.longitude,
-                    altitude: from.position.altitude
-                ),
-                Route.Segment.Location(
-                    latitude: to.position.latitude,
-                    longitude: to.position.longitude,
-                    altitude: to.position.altitude
-                )
-            ],
-            distance: edge.weight
-        )
-    }
-    
     private func calculateEstimatedTime(for segments: [Route.Segment]) -> TimeInterval {
         segments.reduce(0) { total, segment in
             switch segment.type {
@@ -401,6 +411,40 @@ public actor RoutingEngine {
             }
         }
     }
+    
+    private func buildSegment(
+        from: Node,
+        to: Node,
+        edge: Edge
+    ) throws -> Route.Segment {
+        let type: Route.Segment.SegmentType
+        
+        switch (from.type, to.type) {
+        case (.lift(let lift), _):
+            type = .lift(lift)
+        case (.run(let run), _):
+            type = .run(run)
+        default:
+            type = .connection
+        }
+        
+        return Route.Segment(
+            type: type,
+            path: [
+                Route.Segment.Location(
+                    latitude: from.coordinate.latitude,
+                    longitude: from.coordinate.longitude,
+                    altitude: from.elevation
+                ),
+                Route.Segment.Location(
+                    latitude: to.coordinate.latitude,
+                    longitude: to.coordinate.longitude,
+                    altitude: to.elevation
+                )
+            ],
+            distance: edge.distance
+        )
+    }
 }
 
 // MARK: - Supporting Types
@@ -412,40 +456,34 @@ public struct ResortGraph {
 
 public struct Node {
     let id: String
-    let position: Resort.Location
+    let coordinate: CLLocationCoordinate2D
+    let elevation: Double
     let type: NodeType
     
-    enum NodeType {
-        case lift(Lift)
-        case run(Run)
-        
-        var lift: Lift? {
-            if case .lift(let lift) = self {
-                return lift
-            }
-            return nil
-        }
-        
-        var run: Run? {
-            if case .run(let run) = self {
-                return run
-            }
-            return nil
-        }
+    init(id: String, coordinate: CLLocationCoordinate2D, elevation: Double, type: NodeType = .point) {
+        self.id = id
+        self.coordinate = coordinate
+        self.elevation = elevation
+        self.type = type
     }
+}
+
+public enum NodeType {
+    case lift(Lift)
+    case run(Run)
+    case point
 }
 
 public struct Edge {
     let from: String
     let to: String
-    let weight: Double
     let type: EdgeType
+    let distance: Double
     
     enum EdgeType {
+        case run(difficulty: SkiDifficulty)
         case lift
-        case run
         case connection
-        case liftToRun
     }
 }
 
@@ -454,7 +492,7 @@ public struct RoutePreferences {
     public let preferLessStrenuous: Bool
     public let maxWaitTime: TimeInterval?
     
-    public init(avoidCrowds: Bool, preferLessStrenuous: Bool, maxWaitTime: TimeInterval? = nil) {
+    public init(avoidCrowds: Bool = false, preferLessStrenuous: Bool = false, maxWaitTime: TimeInterval? = nil) {
         self.avoidCrowds = avoidCrowds
         self.preferLessStrenuous = preferLessStrenuous
         self.maxWaitTime = maxWaitTime
@@ -465,15 +503,4 @@ public enum RoutingError: Error {
     case graphNotInitialized
     case noRouteFound
     case invalidPath
-    
-    public var localizedDescription: String {
-        switch self {
-        case .graphNotInitialized:
-            return "Resort data not loaded"
-        case .noRouteFound:
-            return "No valid route found between the selected points"
-        case .invalidPath:
-            return "Invalid path data"
-        }
-    }
 } 

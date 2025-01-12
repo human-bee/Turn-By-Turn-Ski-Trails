@@ -14,7 +14,6 @@ public struct Configuration {
     }
 }
 
-// Configuration-specific errors
 extension Configuration {
     public enum Error: Swift.Error, LocalizedError {
         case invalidURL
@@ -23,9 +22,9 @@ extension Configuration {
         public var errorDescription: String? {
             switch self {
             case .invalidURL:
-                return "Invalid API URL configuration"
+                return "Invalid API base URL format"
             case .missingAPIKey:
-                return "Missing API key in configuration"
+                return "Missing API authentication key"
             }
         }
     }

@@ -1,8 +1,7 @@
 import Foundation
 import CoreLocation
-import SkiTrailsCore
 
-enum APIError: Error {
+public enum APIError: Error, LocalizedError {
     case invalidURL
     case invalidResponse
     case networkError(Error)
@@ -11,7 +10,7 @@ enum APIError: Error {
     case unauthorized
     case unknown
     
-    var localizedDescription: String {
+    public var errorDescription: String? {
         switch self {
         case .invalidURL:
             return "Invalid URL configuration"
@@ -31,8 +30,8 @@ enum APIError: Error {
     }
 }
 
-actor APIClient {
-    static let shared = APIClient()
+public actor APIClient {
+    public static let shared = APIClient()
     
     private let session: URLSession
     private let decoder: JSONDecoder
@@ -53,22 +52,22 @@ actor APIClient {
         self.encoder.dateEncodingStrategy = .iso8601
     }
     
-    func fetchResortList() async throws -> [Resort] {
+    public func fetchResortList() async throws -> [Resort] {
         let url = try buildURL(path: "/resorts")
         return try await fetch(url)
     }
     
-    func fetchWeather(for resort: Resort) async throws -> Weather {
+    public func fetchWeather(for resort: Resort) async throws -> WeatherInfo {
         let url = try buildURL(path: "/weather/\(resort.id)")
         return try await fetch(url)
     }
     
-    func fetchLiftStatus(for resort: Resort) async throws -> [Lift] {
+    public func fetchLiftStatus(for resort: Resort) async throws -> [Lift] {
         let url = try buildURL(path: "/lifts/\(resort.id)")
         return try await fetch(url)
     }
     
-    func fetchResortInfo(id: String) async throws -> Resort {
+    public func fetchResortInfo(id: String) async throws -> Resort {
         let url = try buildURL(path: "/resorts/\(id)")
         return try await fetch(url)
     }
@@ -121,5 +120,21 @@ actor APIClient {
         }
         
         return try await fetch(request)
+    }
+}
+
+public struct WeatherInfo: Codable {
+    public let temperature: Double
+    public let conditions: String
+    public let snowDepth: Double
+    public let windSpeed: Double
+    public let visibility: Double
+    
+    public init(temperature: Double, conditions: String, snowDepth: Double, windSpeed: Double, visibility: Double) {
+        self.temperature = temperature
+        self.conditions = conditions
+        self.snowDepth = snowDepth
+        self.windSpeed = windSpeed
+        self.visibility = visibility
     }
 } 

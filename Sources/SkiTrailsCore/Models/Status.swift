@@ -9,16 +9,11 @@ public enum Status: String, Codable {
     
     public var color: Color {
         switch self {
-        case .open:
-            return .green
-        case .closed:
-            return .red
-        case .hold:
-            return .orange
-        case .scheduled:
-            return .blue
-        case .grooming:
-            return .purple
+        case .open: return .green
+        case .closed: return .red
+        case .hold: return .orange
+        case .scheduled: return .blue
+        case .grooming: return .purple
         }
     }
 } 

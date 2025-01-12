@@ -1,5 +1,6 @@
 import SwiftUI
 import CoreLocation
+import SkiTrailsCore
 
 class MapViewModel: ObservableObject {
     @Published var selectedFeature: MapFeature?

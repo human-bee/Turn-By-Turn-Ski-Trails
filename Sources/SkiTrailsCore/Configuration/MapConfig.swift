@@ -7,7 +7,7 @@ public enum MapConfig {
         public var errorDescription: String? {
             switch self {
             case .missingMapboxToken:
-                return "Mapbox access token not found in environment configuration"
+                return "Missing Mapbox access token"
             }
         }
     }
