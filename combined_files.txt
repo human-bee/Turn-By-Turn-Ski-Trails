@@ -1,10 +1,12 @@
-# File Tree - Generated on 2025-01-11 16:34:58
+# File Tree - Generated on 2025-01-14 18:10:44
 
 ├── LICENSE
+├── Package.resolved
 ├── Package.swift
 ├── README.md
 ├── combined_files.txt
 ├── envmirror.md
+├── iOS-transition-todo.md
 ├── project.yml
 ├── App
 │   └── SkiTrails
@@ -40,36 +42,40 @@
 │       │   ├── NavigationViewModel.swift
 │       │   └── ResortViewModel.swift
 │       └── Views
-│           ├── ARResortView.swift
 │           ├── ActiveNavigationView.swift
-│           ├── ContentView.swift
 │           ├── ErrorAlertView.swift
 │           ├── MapSelectionView.swift
 │           ├── MapView.swift
 │           ├── MapboxMapView.swift
-│           ├── NavigationSetupView.swift
 │           ├── RouteDetailView.swift
-│           └── RouteOverlayView.swift
-├── SkiTrails.xcodeproj
-│   ├── project.pbxproj
-│   ├── project.xcworkspace
-│   │   ├── contents.xcworkspacedata
-│   │   ├── xcshareddata
-│   │   │   └── swiftpm
-│   │   │       ├── Package.resolved
-│   │   │       └── configuration
-│   │   └── xcuserdata
-│   │       └── bsteinher.xcuserdatad
-│   │           └── UserInterfaceState.xcuserstate
-│   ├── xcshareddata
-│   └── xcuserdata
-│       └── bsteinher.xcuserdatad
-│           └── xcschemes
-│               └── xcschememanagement.plist
+│           ├── RouteOverlayView.swift
+│           ├── RouteSelectionView.swift
+│           ├── Views.swift
+│           └── Components
+├── SkiTrailsCore
+│   ├── Package.swift
+│   └── Sources
+│       └── SkiTrailsCore
+│           ├── Configuration
+│           │   ├── Configuration.swift
+│           │   ├── CoreConfig.swift
+│           │   └── MapConfig.swift
+│           ├── Models
+│           │   ├── AppState.swift
+│           │   ├── HeavenlyData.swift
+│           │   ├── MapFeature.swift
+│           │   ├── Resort.swift
+│           │   └── Status.swift
+│           ├── Routing
+│           │   ├── RoutingEngine.swift
+│           │   └── RoutingTypes.swift
+│           ├── Services
+│           │   └── APIClient.swift
+│           └── ViewModels
+│               └── MapViewModel.swift
 ├── Sources
 │   ├── SkiTrails
 │   │   ├── ContentView.swift
-│   │   ├── SkiTrailsApp.swift
 │   │   └── Images.xcassets
 │   │       ├── Contents.json
 │   │       └── AppIcon.appiconset
@@ -89,6 +95,8 @@
 │       ├── Routing
 │       │   ├── RoutingEngine.swift
 │       │   └── RoutingTypes.swift
+│       ├── Services
+│       │   └── APIClient.swift
 │       └── ViewModels
 │           └── MapViewModel.swift
 └── Tests
@@ -121,6 +129,50 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE. 
 
+### File: Package.resolved
+{
+  "pins" : [
+    {
+      "identity" : "mapbox-common-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-common-ios.git",
+      "state" : {
+        "revision" : "ce35687685331b1690149637d25ddc47d88146de",
+        "version" : "23.11.2"
+      }
+    },
+    {
+      "identity" : "mapbox-core-maps-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-core-maps-ios.git",
+      "state" : {
+        "revision" : "95bb164a4ca016cb6fce3cdfb13c4902bf8b8c18",
+        "version" : "10.19.2"
+      }
+    },
+    {
+      "identity" : "mapbox-maps-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-maps-ios.git",
+      "state" : {
+        "revision" : "0af0d49fe085923af5dcd00714ec0c6c129a44f3",
+        "version" : "10.19.1"
+      }
+    },
+    {
+      "identity" : "turf-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/turf-swift.git",
+      "state" : {
+        "revision" : "213050191cfcb3d5aa76e1fa90c6ff1e182a42ca",
+        "version" : "2.8.0"
+      }
+    }
+  ],
+  "version" : 2
+}
+
+
 ### File: Package.swift
 // swift-tools-version:5.9
 import PackageDescription
@@ -128,7 +180,8 @@ import PackageDescription
 let package = Package(
     name: "SkiTrails",
     platforms: [
-        .iOS(.v15)
+        .iOS(.v17),
+        .macOS(.v14)
     ],
     products: [
         .library(
@@ -137,17 +190,26 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", from: "10.16.0"),
-        .package(url: "https://github.com/getsentry/sentry-cocoa.git", from: "8.17.1")
+        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", "10.16.0"..<"11.0.0"),
+        .package(url: "https://github.com/mapbox/turf-swift.git", exact: "2.8.0")
     ],
     targets: [
         .target(
             name: "SkiTrailsCore",
             dependencies: [
                 .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
-                .product(name: "Sentry", package: "sentry-cocoa")
+                .product(name: "Turf", package: "turf-swift")
             ],
             path: "Sources/SkiTrailsCore"
+        ),
+        .executableTarget(
+            name: "SkiTrails",
+            dependencies: [
+                "SkiTrailsCore",
+                .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
+                .product(name: "Turf", package: "turf-swift")
+            ],
+            path: "App/SkiTrails"
         ),
         .testTarget(
             name: "SkiTrailsCoreTests",
@@ -171,16 +233,34 @@ A 3D ski resort mapping application built with SwiftUI that provides interactive
 
 ## Requirements
 
-- iOS 15.0+
-- Xcode 13.0+
-- Swift 5.5+
+- iOS 17.0+
+- Xcode 15.0+
+- Swift 5.9+
 
 ## Installation
 
 1. Clone the repository
-2. Copy `.env.example` to `.env` and fill in your API keys
+2. Set up environment variables (see Environment Configuration below)
 3. Open `SkiTrails.xcodeproj` in Xcode
 4. Build and run
+
+## Environment Configuration
+
+The app requires several environment variables to be set. These can be configured in two ways:
+
+1. Using Xcode scheme environment variables (recommended for development)
+2. Using launch arguments when running the app (recommended for CI/CD)
+
+Required environment variables:
+```
+MAPBOX_ACCESS_TOKEN=your_mapbox_token
+WEATHER_UNLOCKED_API_KEY=your_weather_api_key
+WEATHER_UNLOCKED_APP_ID=your_weather_app_id
+SKI_API_KEY=your_ski_api_key
+SENTRY_DSN=your_sentry_dsn
+```
+
+See `.env.example` for a complete list of available configuration options.
 
 ## APIs Used
 
@@ -198,9 +278,237 @@ The app follows a clean architecture pattern with:
 - Domain layer for business logic
 - Data layer for API integration
 
+The project is structured into two main targets:
+- `SkiTrails`: The main iOS app
+- `SkiTrailsCore`: A Swift Package containing core business logic and models
+
 ## License
 
 This project is licensed under the MIT License - see the LICENSE file for details. 
+
+### File: combined_files.txt
+# File Tree - Generated on 2025-01-14 18:10:44
+
+├── LICENSE
+├── Package.resolved
+├── Package.swift
+├── README.md
+├── combined_files.txt
+├── envmirror.md
+├── iOS-transition-todo.md
+├── project.yml
+├── App
+│   └── SkiTrails
+│       ├── Info.plist
+│       ├── SkiTrailsApp.swift
+│       ├── App
+│       ├── Bundle.docc
+│       │   ├── Configuration.plist
+│       │   └── Info.plist
+│       ├── Extensions
+│       │   └── SkiDifficulty+Color.swift
+│       ├── Images.xcassets
+│       │   ├── Contents.json
+│       │   └── AppIcon.appiconset
+│       │       └── Contents.json
+│       ├── Models
+│       │   ├── AppState.swift
+│       │   ├── HeavenlyData.swift
+│       │   ├── Status.swift
+│       │   └── TrailDifficulty.swift
+│       ├── Resources
+│       ├── Services
+│       │   ├── APIClient.swift
+│       │   ├── ErrorHandler.swift
+│       │   ├── LocationManager.swift
+│       │   └── ResortDataService.swift
+│       ├── Utils
+│       │   ├── EnvConfig.swift
+│       │   └── MapConfig.swift
+│       ├── ViewModels
+│       │   ├── ContentViewModel.swift
+│       │   ├── MapViewModel.swift
+│       │   ├── NavigationViewModel.swift
+│       │   └── ResortViewModel.swift
+│       └── Views
+│           ├── ActiveNavigationView.swift
+│           ├── ErrorAlertView.swift
+│           ├── MapSelectionView.swift
+│           ├── MapView.swift
+│           ├── MapboxMapView.swift
+│           ├── RouteDetailView.swift
+│           ├── RouteOverlayView.swift
+│           ├── RouteSelectionView.swift
+│           ├── Views.swift
+│           └── Components
+├── SkiTrailsCore
+│   ├── Package.swift
+│   └── Sources
+│       └── SkiTrailsCore
+│           ├── Configuration
+│           │   ├── Configuration.swift
+│           │   ├── CoreConfig.swift
+│           │   └── MapConfig.swift
+│           ├── Models
+│           │   ├── AppState.swift
+│           │   ├── HeavenlyData.swift
+│           │   ├── MapFeature.swift
+│           │   ├── Resort.swift
+│           │   └── Status.swift
+│           ├── Routing
+│           │   ├── RoutingEngine.swift
+│           │   └── RoutingTypes.swift
+│           ├── Services
+│           │   └── APIClient.swift
+│           └── ViewModels
+│               └── MapViewModel.swift
+├── Sources
+│   ├── SkiTrails
+│   │   ├── ContentView.swift
+│   │   └── Images.xcassets
+│   │       ├── Contents.json
+│   │       └── AppIcon.appiconset
+│   │           └── Contents.json
+│   └── SkiTrailsCore
+│       ├── SkiTrailsCore.swift
+│       ├── Configuration
+│       │   ├── Configuration.swift
+│       │   ├── CoreConfig.swift
+│       │   └── MapConfig.swift
+│       ├── Models
+│       │   ├── AppState.swift
+│       │   ├── HeavenlyData.swift
+│       │   ├── MapFeature.swift
+│       │   ├── Resort.swift
+│       │   └── Status.swift
+│       ├── Routing
+│       │   ├── RoutingEngine.swift
+│       │   └── RoutingTypes.swift
+│       ├── Services
+│       │   └── APIClient.swift
+│       └── ViewModels
+│           └── MapViewModel.swift
+└── Tests
+    └── SkiTrailsTests
+        └── SkiTrailsTests.swift
+
+# Combined Files Content
+
+
+### File: LICENSE
+MIT License
+
+Copyright (c) 2024 Turn-By-Turn Ski Trails
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in
+all copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE. 
+
+### File: Package.resolved
+{
+  "pins" : [
+    {
+      "identity" : "mapbox-common-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-common-ios.git",
+      "state" : {
+        "revision" : "ce35687685331b1690149637d25ddc47d88146de",
+        "version" : "23.11.2"
+      }
+    },
+    {
+      "identity" : "mapbox-core-maps-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-core-maps-ios.git",
+      "state" : {
+        "revision" : "95bb164a4ca016cb6fce3cdfb13c4902bf8b8c18",
+        "version" : "10.19.2"
+      }
+    },
+    {
+      "identity" : "mapbox-maps-ios",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/mapbox-maps-ios.git",
+      "state" : {
+        "revision" : "0af0d49fe085923af5dcd00714ec0c6c129a44f3",
+        "version" : "10.19.1"
+      }
+    },
+    {
+      "identity" : "turf-swift",
+      "kind" : "remoteSourceControl",
+      "location" : "https://github.com/mapbox/turf-swift.git",
+      "state" : {
+        "revision" : "213050191cfcb3d5aa76e1fa90c6ff1e182a42ca",
+        "version" : "2.8.0"
+      }
+    }
+  ],
+  "version" : 2
+}
+
+
+### File: Package.swift
+// swift-tools-version:5.9
+import PackageDescription
+
+let package = Package(
+    name: "SkiTrails",
+    platforms: [
+        .iOS(.v17),
+        .macOS(.v14)
+    ],
+    products: [
+        .library(
+            name: "SkiTrailsCore",
+            targets: ["SkiTrailsCore"]
+        )
+    ],
+    dependencies: [
+        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", "10.16.0"..<"11.0.0"),
+        .package(url: "https://github.com/mapbox/turf-swift.git", exact: "2.8.0")
+    ],
+    targets: [
+        .target(
+            name: "SkiTrailsCore",
+            dependencies: [
+                .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
+                .product(name: "Turf", package: "turf-swift")
+            ],
+            path: "Sources/SkiTrailsCore"
+        ),
+        .executableTarget(
+            name: "SkiTrails",
+            dependencies: [
+                "SkiTrailsCore",
+                .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
+                .product(name: "Turf", package: "turf-swift")
+            ],
+            path: "App/SkiTrails"
+        ),
+        .testTarget(
+            name: "SkiTrailsCoreTests",
+            dependencies: ["SkiTrailsCore"]
+        )
+    ]
+) 
+
+### File: README.md
+
 
 ### File: envmirror.md
 # Environment configuration for the Ski Resort Mapping App
@@ -252,6 +560,91 @@ SENTRY_DSN=your_sentry_dsn_here
 # Custom Configuration
 CUSTOM_3D_MODEL_URL=your_custom_3d_model_url_here 
 
+### File: iOS-transition-todo.md
+# iOS App Transition Plan
+
+## 1. Create New Xcode Project
+- [x] Create new iOS app project using SwiftUI template
+- [x] Configure basic app settings (name, bundle ID, team)
+- [x] Set minimum deployment target to iOS 17 (using 17.6)
+- [x] Ensure SwiftUI lifecycle is selected (verified via SkiTrailsApp.swift)
+
+## 2. Package Structure
+### 2.1 Create Local Package
+- [x] Create new local package "SkiTrailsCore" in SkiTrails-iOS project
+- [x] Configure Package.swift with correct dependencies:
+  - [x] MapboxMaps (10.16.0..<11.0.0)
+  - [x] Turf (exact: 2.8.0)
+- [x] Set platform requirements (iOS 17)
+
+### 2.2 Directory Structure Migration
+- [x] Create initial package structure:
+  - [x] Sources/SkiTrailsCore/
+  - [x] Tests/SkiTrailsCoreTests/
+- [ ] Migrate core directories maintaining structure:
+  - [ ] Routing/
+  - [ ] Services/
+  - [ ] Models/
+  - [ ] ViewModels/
+  - [ ] Configuration/
+
+### 2.3 File Migration (with verification)
+- [ ] For each directory:
+  - [ ] Copy files
+  - [ ] Verify imports
+  - [ ] Test compilation
+  - [ ] Document any issues or needed changes
+
+### 2.4 Package Integration
+- [ ] Add SkiTrailsCore package dependency to main app target
+- [ ] Verify package builds independently
+- [ ] Test package integration with main app
+
+## 3. Code Migration
+- [ ] Move app-specific code from App/SkiTrails to main app target
+  - [ ] Views
+  - [ ] ViewModels
+  - [ ] App lifecycle code
+  - [ ] Resources and assets
+- [ ] Update import statements
+- [ ] Fix any broken references
+
+## 4. Resource Migration
+- [ ] Move Images.xcassets to main app target
+- [ ] Configure Info.plist
+- [ ] Move any localization files
+- [ ] Set up environment variables/configuration
+
+## 5. Dependencies
+- [ ] Set up Mapbox in main app target
+- [ ] Configure any required capabilities
+- [ ] Add any needed app-specific frameworks
+
+## 6. Testing
+- [ ] Verify all views render correctly
+- [ ] Test navigation flow
+- [ ] Verify map functionality
+- [ ] Check all features work as expected
+- [ ] Test on different iOS devices/simulators
+
+## 7. Cleanup
+- [ ] Remove old package-based project structure
+- [ ] Update documentation
+- [ ] Update any build scripts or workflows
+- [ ] Archive old code if needed
+
+## 8. Future Considerations
+- [ ] Plan for visionOS support
+- [ ] Consider watchOS companion app
+- [ ] Plan for TestFlight distribution
+- [ ] Set up CI/CD with Xcode Cloud
+
+## Notes
+- Keep the core functionality in SkiTrailsCore package for potential reuse
+- Ensure proper separation of concerns between app and package
+- Document any configuration requirements for future reference
+- Organization identifier: Bens-Bots.SkiTrails 
+
 ### File: project.yml
 name: SkiTrails
 options:
@@ -259,18 +652,46 @@ options:
   deploymentTarget:
     iOS: 17.0
 packages:
+  MapboxMaps:
+    url: https://github.com/mapbox/mapbox-maps-ios.git
+    from: 10.16.0
+  Sentry:
+    url: https://github.com/getsentry/sentry-cocoa.git
+    from: 8.17.1
   SkiTrailsCore:
-    path: .
+    path: ./
 targets:
+  SkiTrailsCore:
+    type: framework
+    platform: iOS
+    sources:
+      - path: Sources/SkiTrailsCore
+    dependencies:
+      - package: MapboxMaps
+        product: MapboxMaps
+      - package: Sentry
+        product: Sentry
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: com.skitrails.core
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
   SkiTrails:
     type: application
     platform: iOS
     sources: 
       - path: App/SkiTrails
+        includes:
+          - "**/*.swift"
         excludes:
           - "Resources/Info.plist"
     dependencies:
-      - package: SkiTrailsCore
+      - target: SkiTrailsCore
+      - package: MapboxMaps
+        product: MapboxMaps
+      - package: Sentry
+        product: Sentry
     settings:
       base:
         INFOPLIST_FILE: App/SkiTrails/Info.plist
@@ -289,579 +710,6 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIRequiredDeviceCapabilities:
           - armv7
-
-### File: SkiTrails.xcodeproj/project.pbxproj
-// !$*UTF8*$!
-{
-	archiveVersion = 1;
-	classes = {
-	};
-	objectVersion = 54;
-	objects = {
-
-/* Begin PBXBuildFile section */
-		0B5014D9329D06867A9FD80D /* AppState.swift in Sources */ = {isa = PBXBuildFile; fileRef = CE46DEFE5ADAF894ACF58737 /* AppState.swift */; };
-		107B3B570B3A705BAABAEB92 /* Status.swift in Sources */ = {isa = PBXBuildFile; fileRef = 053C4A8BC3F23F6BA2C7DAF2 /* Status.swift */; };
-		26B937D0929A52555D69F171 /* RouteOverlayView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4018E0D9BC219FA053EBD891 /* RouteOverlayView.swift */; };
-		2A61397B2822CAEFEBCD0450 /* EnvConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B8C1E2E0AE5613BD252AA4F /* EnvConfig.swift */; };
-		32D125DB9AB7EE19D72B048B /* MapConfig.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7DAD6C4F59D0C461E3DCF2B3 /* MapConfig.swift */; };
-		5140E7AA6FF254127FB3DC1D /* ErrorHandler.swift in Sources */ = {isa = PBXBuildFile; fileRef = 324BFD5B8EE7F7CFDF800302 /* ErrorHandler.swift */; };
-		55CBA987729ABAC2E18DD503 /* ResortDataService.swift in Sources */ = {isa = PBXBuildFile; fileRef = 46E103FECD896A70BFD44E28 /* ResortDataService.swift */; };
-		662C570CD69327DB1C6A3D33 /* MapboxMapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9FB988E56C7140BC5FA7DCF1 /* MapboxMapView.swift */; };
-		6769D0086CA909B8101C1340 /* ErrorAlertView.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE6147B0EB4588ECFD61FF68 /* ErrorAlertView.swift */; };
-		7D8414427949D0BEA5B0300D /* Images.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = FE70309CC8B8F58EE313E5BB /* Images.xcassets */; };
-		805A093423E612E654BD42C5 /* SkiDifficulty+Color.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5B2CE8D8E4CEEB02C2863374 /* SkiDifficulty+Color.swift */; };
-		809F7DFFE2F8A635F9BC2D67 /* TrailDifficulty.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5DB02AF5CAE496D19851BFA9 /* TrailDifficulty.swift */; };
-		882858AC29BBE650F17327DB /* ResortViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2EC4C62A02070B61139FD8F9 /* ResortViewModel.swift */; };
-		A73348954D8F0C3B73FB6A7A /* LocationManager.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF0FFF047DDFCD14EBC10226 /* LocationManager.swift */; };
-		A75B222A900D27E627CABCA9 /* ARResortView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 203DBF0F671114F5A5DA62E8 /* ARResortView.swift */; };
-		A875F05EECAF91015197B632 /* MapView.swift in Sources */ = {isa = PBXBuildFile; fileRef = EF3EB4DCAEC0536C096B2481 /* MapView.swift */; };
-		B2A996E5E14DC4789B3928E7 /* HeavenlyData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 08CE2DCF4E9E957DAAC852A8 /* HeavenlyData.swift */; };
-		B88497FAE5A09A4099CEBB7B /* ActiveNavigationView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E3877CA5314794946FFE7A8A /* ActiveNavigationView.swift */; };
-		BAE8102B28781C71D8678CF8 /* MapViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = A4702513E31F15384502A9E1 /* MapViewModel.swift */; };
-		C81BC7A4A579B6D930E1D03F /* Bundle.docc in Sources */ = {isa = PBXBuildFile; fileRef = 82A1BE5D30A95AF4AFE86D12 /* Bundle.docc */; };
-		E20AA8CA3DEBB1A14B78A9CF /* SkiTrailsCore in Frameworks */ = {isa = PBXBuildFile; productRef = 9B17550135285C86A4ACF238 /* SkiTrailsCore */; };
-		E2DCC7225F0EB7EAF5CE040F /* APIClient.swift in Sources */ = {isa = PBXBuildFile; fileRef = EB5093C840EDEEB89867410E /* APIClient.swift */; };
-		E45D015DFD4104FFF94A1D95 /* SkiTrailsApp.swift in Sources */ = {isa = PBXBuildFile; fileRef = 992CD0412B09B24970EC0C25 /* SkiTrailsApp.swift */; };
-		E8222E68FCAF85CCDACD0BD6 /* NavigationViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 272EBEB2D63D2B0862FBF598 /* NavigationViewModel.swift */; };
-		F5E3C158EC4D906981D043B6 /* MapSelectionView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1612AE442E97D041364E6110 /* MapSelectionView.swift */; };
-		F74BD58FE1A5D0D38346E923 /* ContentViewModel.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2F004D3EA57B2C8DC90E4A01 /* ContentViewModel.swift */; };
-		FD516AF8B02607E4B3D128D6 /* RouteDetailView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01BA6E1021CCF40744665C70 /* RouteDetailView.swift */; };
-		FDFAEF13CDE5C4A7609133EE /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 09ED9FEAFBD6E8882EE29F8C /* ContentView.swift */; };
-/* End PBXBuildFile section */
-
-/* Begin PBXFileReference section */
-		01BA6E1021CCF40744665C70 /* RouteDetailView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteDetailView.swift; sourceTree = "<group>"; };
-		053C4A8BC3F23F6BA2C7DAF2 /* Status.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Status.swift; sourceTree = "<group>"; };
-		08CE2DCF4E9E957DAAC852A8 /* HeavenlyData.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = HeavenlyData.swift; sourceTree = "<group>"; };
-		09ED9FEAFBD6E8882EE29F8C /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
-		1612AE442E97D041364E6110 /* MapSelectionView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapSelectionView.swift; sourceTree = "<group>"; };
-		203DBF0F671114F5A5DA62E8 /* ARResortView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ARResortView.swift; sourceTree = "<group>"; };
-		272EBEB2D63D2B0862FBF598 /* NavigationViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationViewModel.swift; sourceTree = "<group>"; };
-		2EC4C62A02070B61139FD8F9 /* ResortViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResortViewModel.swift; sourceTree = "<group>"; };
-		2F004D3EA57B2C8DC90E4A01 /* ContentViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentViewModel.swift; sourceTree = "<group>"; };
-		324BFD5B8EE7F7CFDF800302 /* ErrorHandler.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorHandler.swift; sourceTree = "<group>"; };
-		4018E0D9BC219FA053EBD891 /* RouteOverlayView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RouteOverlayView.swift; sourceTree = "<group>"; };
-		46E103FECD896A70BFD44E28 /* ResortDataService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ResortDataService.swift; sourceTree = "<group>"; };
-		5B2CE8D8E4CEEB02C2863374 /* SkiDifficulty+Color.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "SkiDifficulty+Color.swift"; sourceTree = "<group>"; };
-		5B8C1E2E0AE5613BD252AA4F /* EnvConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EnvConfig.swift; sourceTree = "<group>"; };
-		5DB02AF5CAE496D19851BFA9 /* TrailDifficulty.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = TrailDifficulty.swift; sourceTree = "<group>"; };
-		6E6CBA856E8A79DBEB326CCE /* SkiTrails.app */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.application; path = SkiTrails.app; sourceTree = BUILT_PRODUCTS_DIR; };
-		7DAD6C4F59D0C461E3DCF2B3 /* MapConfig.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapConfig.swift; sourceTree = "<group>"; };
-		82A1BE5D30A95AF4AFE86D12 /* Bundle.docc */ = {isa = PBXFileReference; lastKnownFileType = folder.documentationcatalog; path = Bundle.docc; sourceTree = "<group>"; };
-		95C0894FB5338108B4AFC4D3 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
-		992CD0412B09B24970EC0C25 /* SkiTrailsApp.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SkiTrailsApp.swift; sourceTree = "<group>"; };
-		9FB988E56C7140BC5FA7DCF1 /* MapboxMapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapboxMapView.swift; sourceTree = "<group>"; };
-		A4702513E31F15384502A9E1 /* MapViewModel.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapViewModel.swift; sourceTree = "<group>"; };
-		A597BF9A7BF5DBD0BD076FBB /* Turn-By-Turn Ski Trails */ = {isa = PBXFileReference; lastKnownFileType = folder; name = "Turn-By-Turn Ski Trails"; path = .; sourceTree = SOURCE_ROOT; };
-		BE6147B0EB4588ECFD61FF68 /* ErrorAlertView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ErrorAlertView.swift; sourceTree = "<group>"; };
-		CE46DEFE5ADAF894ACF58737 /* AppState.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppState.swift; sourceTree = "<group>"; };
-		DF0FFF047DDFCD14EBC10226 /* LocationManager.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LocationManager.swift; sourceTree = "<group>"; };
-		E3877CA5314794946FFE7A8A /* ActiveNavigationView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ActiveNavigationView.swift; sourceTree = "<group>"; };
-		EB5093C840EDEEB89867410E /* APIClient.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = APIClient.swift; sourceTree = "<group>"; };
-		EF3EB4DCAEC0536C096B2481 /* MapView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MapView.swift; sourceTree = "<group>"; };
-		FE70309CC8B8F58EE313E5BB /* Images.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Images.xcassets; sourceTree = "<group>"; };
-/* End PBXFileReference section */
-
-/* Begin PBXFrameworksBuildPhase section */
-		03E5D09EE30F8D8AC10ABC36 /* Frameworks */ = {
-			isa = PBXFrameworksBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E20AA8CA3DEBB1A14B78A9CF /* SkiTrailsCore in Frameworks */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXFrameworksBuildPhase section */
-
-/* Begin PBXGroup section */
-		0104433A3856A1887CCBD7A8 /* ViewModels */ = {
-			isa = PBXGroup;
-			children = (
-				2F004D3EA57B2C8DC90E4A01 /* ContentViewModel.swift */,
-				A4702513E31F15384502A9E1 /* MapViewModel.swift */,
-				272EBEB2D63D2B0862FBF598 /* NavigationViewModel.swift */,
-				2EC4C62A02070B61139FD8F9 /* ResortViewModel.swift */,
-			);
-			path = ViewModels;
-			sourceTree = "<group>";
-		};
-		15482248925DF424DCBFAF39 /* Services */ = {
-			isa = PBXGroup;
-			children = (
-				EB5093C840EDEEB89867410E /* APIClient.swift */,
-				324BFD5B8EE7F7CFDF800302 /* ErrorHandler.swift */,
-				DF0FFF047DDFCD14EBC10226 /* LocationManager.swift */,
-				46E103FECD896A70BFD44E28 /* ResortDataService.swift */,
-			);
-			path = Services;
-			sourceTree = "<group>";
-		};
-		1ABE3BB06F6DCB1C39113EE1 /* Products */ = {
-			isa = PBXGroup;
-			children = (
-				6E6CBA856E8A79DBEB326CCE /* SkiTrails.app */,
-			);
-			name = Products;
-			sourceTree = "<group>";
-		};
-		2A2988683567B9359FC4C917 /* Models */ = {
-			isa = PBXGroup;
-			children = (
-				CE46DEFE5ADAF894ACF58737 /* AppState.swift */,
-				08CE2DCF4E9E957DAAC852A8 /* HeavenlyData.swift */,
-				053C4A8BC3F23F6BA2C7DAF2 /* Status.swift */,
-				5DB02AF5CAE496D19851BFA9 /* TrailDifficulty.swift */,
-			);
-			path = Models;
-			sourceTree = "<group>";
-		};
-		5BCF01F2AF57567CDED76DE8 /* Packages */ = {
-			isa = PBXGroup;
-			children = (
-				A597BF9A7BF5DBD0BD076FBB /* Turn-By-Turn Ski Trails */,
-			);
-			name = Packages;
-			sourceTree = "<group>";
-		};
-		76643AF32E0967ECFB90DC00 /* Views */ = {
-			isa = PBXGroup;
-			children = (
-				E3877CA5314794946FFE7A8A /* ActiveNavigationView.swift */,
-				203DBF0F671114F5A5DA62E8 /* ARResortView.swift */,
-				09ED9FEAFBD6E8882EE29F8C /* ContentView.swift */,
-				BE6147B0EB4588ECFD61FF68 /* ErrorAlertView.swift */,
-				9FB988E56C7140BC5FA7DCF1 /* MapboxMapView.swift */,
-				1612AE442E97D041364E6110 /* MapSelectionView.swift */,
-				EF3EB4DCAEC0536C096B2481 /* MapView.swift */,
-				01BA6E1021CCF40744665C70 /* RouteDetailView.swift */,
-				4018E0D9BC219FA053EBD891 /* RouteOverlayView.swift */,
-			);
-			path = Views;
-			sourceTree = "<group>";
-		};
-		CE101271C4E3731C6FB65B56 /* SkiTrails */ = {
-			isa = PBXGroup;
-			children = (
-				82A1BE5D30A95AF4AFE86D12 /* Bundle.docc */,
-				FE70309CC8B8F58EE313E5BB /* Images.xcassets */,
-				95C0894FB5338108B4AFC4D3 /* Info.plist */,
-				992CD0412B09B24970EC0C25 /* SkiTrailsApp.swift */,
-				D1A06D7581FC0979DC8D342A /* Extensions */,
-				2A2988683567B9359FC4C917 /* Models */,
-				15482248925DF424DCBFAF39 /* Services */,
-				D414916A0E121509EED16293 /* Utils */,
-				0104433A3856A1887CCBD7A8 /* ViewModels */,
-				76643AF32E0967ECFB90DC00 /* Views */,
-			);
-			name = SkiTrails;
-			path = App/SkiTrails;
-			sourceTree = "<group>";
-		};
-		D1A06D7581FC0979DC8D342A /* Extensions */ = {
-			isa = PBXGroup;
-			children = (
-				5B2CE8D8E4CEEB02C2863374 /* SkiDifficulty+Color.swift */,
-			);
-			path = Extensions;
-			sourceTree = "<group>";
-		};
-		D414916A0E121509EED16293 /* Utils */ = {
-			isa = PBXGroup;
-			children = (
-				5B8C1E2E0AE5613BD252AA4F /* EnvConfig.swift */,
-				7DAD6C4F59D0C461E3DCF2B3 /* MapConfig.swift */,
-			);
-			path = Utils;
-			sourceTree = "<group>";
-		};
-		E7600A4B8E6838A911842EC4 = {
-			isa = PBXGroup;
-			children = (
-				5BCF01F2AF57567CDED76DE8 /* Packages */,
-				CE101271C4E3731C6FB65B56 /* SkiTrails */,
-				1ABE3BB06F6DCB1C39113EE1 /* Products */,
-			);
-			sourceTree = "<group>";
-		};
-/* End PBXGroup section */
-
-/* Begin PBXNativeTarget section */
-		96518D38BCB168FF546BEB0A /* SkiTrails */ = {
-			isa = PBXNativeTarget;
-			buildConfigurationList = 917C2054A5C03904F4321532 /* Build configuration list for PBXNativeTarget "SkiTrails" */;
-			buildPhases = (
-				733F5A90F8B155439D1BA718 /* Sources */,
-				924224D7C0E761A7AC4E3345 /* Resources */,
-				03E5D09EE30F8D8AC10ABC36 /* Frameworks */,
-			);
-			buildRules = (
-			);
-			dependencies = (
-			);
-			name = SkiTrails;
-			packageProductDependencies = (
-				9B17550135285C86A4ACF238 /* SkiTrailsCore */,
-			);
-			productName = SkiTrails;
-			productReference = 6E6CBA856E8A79DBEB326CCE /* SkiTrails.app */;
-			productType = "com.apple.product-type.application";
-		};
-/* End PBXNativeTarget section */
-
-/* Begin PBXProject section */
-		4D4F3220CB8E0311838C7942 /* Project object */ = {
-			isa = PBXProject;
-			attributes = {
-				BuildIndependentTargetsInParallel = YES;
-				LastUpgradeCheck = 1430;
-				TargetAttributes = {
-					96518D38BCB168FF546BEB0A = {
-						DevelopmentTeam = "";
-					};
-				};
-			};
-			buildConfigurationList = 56F5DD0F0E42882467027528 /* Build configuration list for PBXProject "SkiTrails" */;
-			compatibilityVersion = "Xcode 14.0";
-			developmentRegion = en;
-			hasScannedForEncodings = 0;
-			knownRegions = (
-				Base,
-				en,
-			);
-			mainGroup = E7600A4B8E6838A911842EC4;
-			packageReferences = (
-				BD1250636415268544056933 /* XCLocalSwiftPackageReference "." */,
-			);
-			projectDirPath = "";
-			projectRoot = "";
-			targets = (
-				96518D38BCB168FF546BEB0A /* SkiTrails */,
-			);
-		};
-/* End PBXProject section */
-
-/* Begin PBXResourcesBuildPhase section */
-		924224D7C0E761A7AC4E3345 /* Resources */ = {
-			isa = PBXResourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				7D8414427949D0BEA5B0300D /* Images.xcassets in Resources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXResourcesBuildPhase section */
-
-/* Begin PBXSourcesBuildPhase section */
-		733F5A90F8B155439D1BA718 /* Sources */ = {
-			isa = PBXSourcesBuildPhase;
-			buildActionMask = 2147483647;
-			files = (
-				E2DCC7225F0EB7EAF5CE040F /* APIClient.swift in Sources */,
-				A75B222A900D27E627CABCA9 /* ARResortView.swift in Sources */,
-				B88497FAE5A09A4099CEBB7B /* ActiveNavigationView.swift in Sources */,
-				0B5014D9329D06867A9FD80D /* AppState.swift in Sources */,
-				C81BC7A4A579B6D930E1D03F /* Bundle.docc in Sources */,
-				FDFAEF13CDE5C4A7609133EE /* ContentView.swift in Sources */,
-				F74BD58FE1A5D0D38346E923 /* ContentViewModel.swift in Sources */,
-				2A61397B2822CAEFEBCD0450 /* EnvConfig.swift in Sources */,
-				6769D0086CA909B8101C1340 /* ErrorAlertView.swift in Sources */,
-				5140E7AA6FF254127FB3DC1D /* ErrorHandler.swift in Sources */,
-				B2A996E5E14DC4789B3928E7 /* HeavenlyData.swift in Sources */,
-				A73348954D8F0C3B73FB6A7A /* LocationManager.swift in Sources */,
-				32D125DB9AB7EE19D72B048B /* MapConfig.swift in Sources */,
-				F5E3C158EC4D906981D043B6 /* MapSelectionView.swift in Sources */,
-				A875F05EECAF91015197B632 /* MapView.swift in Sources */,
-				BAE8102B28781C71D8678CF8 /* MapViewModel.swift in Sources */,
-				662C570CD69327DB1C6A3D33 /* MapboxMapView.swift in Sources */,
-				E8222E68FCAF85CCDACD0BD6 /* NavigationViewModel.swift in Sources */,
-				55CBA987729ABAC2E18DD503 /* ResortDataService.swift in Sources */,
-				882858AC29BBE650F17327DB /* ResortViewModel.swift in Sources */,
-				FD516AF8B02607E4B3D128D6 /* RouteDetailView.swift in Sources */,
-				26B937D0929A52555D69F171 /* RouteOverlayView.swift in Sources */,
-				805A093423E612E654BD42C5 /* SkiDifficulty+Color.swift in Sources */,
-				E45D015DFD4104FFF94A1D95 /* SkiTrailsApp.swift in Sources */,
-				107B3B570B3A705BAABAEB92 /* Status.swift in Sources */,
-				809F7DFFE2F8A635F9BC2D67 /* TrailDifficulty.swift in Sources */,
-			);
-			runOnlyForDeploymentPostprocessing = 0;
-		};
-/* End PBXSourcesBuildPhase section */
-
-/* Begin XCBuildConfiguration section */
-		59CE62758876D9875EDA249A /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
-				INFOPLIST_FILE = App/SkiTrails/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.skitrails.app;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Release;
-		};
-		5D49474E482F4E46E47F91AD /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = dwarf;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				ENABLE_TESTABILITY = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_DYNAMIC_NO_PIC = NO;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_OPTIMIZATION_LEVEL = 0;
-				GCC_PREPROCESSOR_DEFINITIONS = (
-					"$(inherited)",
-					"DEBUG=1",
-				);
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
-				MTL_FAST_MATH = YES;
-				ONLY_ACTIVE_ARCH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_ACTIVE_COMPILATION_CONDITIONS = DEBUG;
-				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Debug;
-		};
-		AADCA4D5824BA16A0DF0BE8D /* Release */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ALWAYS_SEARCH_USER_PATHS = NO;
-				CLANG_ANALYZER_NONNULL = YES;
-				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
-				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
-				CLANG_CXX_LIBRARY = "libc++";
-				CLANG_ENABLE_MODULES = YES;
-				CLANG_ENABLE_OBJC_ARC = YES;
-				CLANG_ENABLE_OBJC_WEAK = YES;
-				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
-				CLANG_WARN_BOOL_CONVERSION = YES;
-				CLANG_WARN_COMMA = YES;
-				CLANG_WARN_CONSTANT_CONVERSION = YES;
-				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
-				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
-				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
-				CLANG_WARN_EMPTY_BODY = YES;
-				CLANG_WARN_ENUM_CONVERSION = YES;
-				CLANG_WARN_INFINITE_RECURSION = YES;
-				CLANG_WARN_INT_CONVERSION = YES;
-				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
-				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
-				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
-				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
-				CLANG_WARN_QUOTED_INCLUDE_IN_FRAMEWORK_HEADER = YES;
-				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
-				CLANG_WARN_STRICT_PROTOTYPES = YES;
-				CLANG_WARN_SUSPICIOUS_MOVE = YES;
-				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
-				CLANG_WARN_UNREACHABLE_CODE = YES;
-				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
-				COPY_PHASE_STRIP = NO;
-				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
-				ENABLE_NS_ASSERTIONS = NO;
-				ENABLE_STRICT_OBJC_MSGSEND = YES;
-				GCC_C_LANGUAGE_STANDARD = gnu11;
-				GCC_NO_COMMON_BLOCKS = YES;
-				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
-				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
-				GCC_WARN_UNDECLARED_SELECTOR = YES;
-				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
-				GCC_WARN_UNUSED_FUNCTION = YES;
-				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
-				MTL_ENABLE_DEBUG_INFO = NO;
-				MTL_FAST_MATH = YES;
-				PRODUCT_NAME = "$(TARGET_NAME)";
-				SDKROOT = iphoneos;
-				SWIFT_COMPILATION_MODE = wholemodule;
-				SWIFT_OPTIMIZATION_LEVEL = "-O";
-				SWIFT_VERSION = 5.0;
-			};
-			name = Release;
-		};
-		D4DF2BA5766F3688F2AF0D32 /* Debug */ = {
-			isa = XCBuildConfiguration;
-			buildSettings = {
-				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
-				CODE_SIGN_IDENTITY = "iPhone Developer";
-				DEVELOPMENT_TEAM = "";
-				INFOPLIST_FILE = App/SkiTrails/Info.plist;
-				LD_RUNPATH_SEARCH_PATHS = (
-					"$(inherited)",
-					"@executable_path/Frameworks",
-				);
-				PRODUCT_BUNDLE_IDENTIFIER = com.skitrails.app;
-				SDKROOT = iphoneos;
-				TARGETED_DEVICE_FAMILY = "1,2";
-			};
-			name = Debug;
-		};
-/* End XCBuildConfiguration section */
-
-/* Begin XCConfigurationList section */
-		56F5DD0F0E42882467027528 /* Build configuration list for PBXProject "SkiTrails" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				5D49474E482F4E46E47F91AD /* Debug */,
-				AADCA4D5824BA16A0DF0BE8D /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-		917C2054A5C03904F4321532 /* Build configuration list for PBXNativeTarget "SkiTrails" */ = {
-			isa = XCConfigurationList;
-			buildConfigurations = (
-				D4DF2BA5766F3688F2AF0D32 /* Debug */,
-				59CE62758876D9875EDA249A /* Release */,
-			);
-			defaultConfigurationIsVisible = 0;
-			defaultConfigurationName = Debug;
-		};
-/* End XCConfigurationList section */
-
-/* Begin XCLocalSwiftPackageReference section */
-		BD1250636415268544056933 /* XCLocalSwiftPackageReference "." */ = {
-			isa = XCLocalSwiftPackageReference;
-			relativePath = .;
-		};
-/* End XCLocalSwiftPackageReference section */
-
-/* Begin XCSwiftPackageProductDependency section */
-		9B17550135285C86A4ACF238 /* SkiTrailsCore */ = {
-			isa = XCSwiftPackageProductDependency;
-			productName = SkiTrailsCore;
-		};
-/* End XCSwiftPackageProductDependency section */
-	};
-	rootObject = 4D4F3220CB8E0311838C7942 /* Project object */;
-}
-
-
-### File: SkiTrails.xcodeproj/xcuserdata/bsteinher.xcuserdatad/xcschemes/xcschememanagement.plist
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-	<key>SchemeUserState</key>
-	<dict>
-		<key>SkiTrails.xcscheme_^#shared#^_</key>
-		<dict>
-			<key>orderHint</key>
-			<integer>0</integer>
-		</dict>
-	</dict>
-</dict>
-</plist>
-
-
-### File: SkiTrails.xcodeproj/project.xcworkspace/contents.xcworkspacedata
-<?xml version="1.0" encoding="UTF-8"?>
-<Workspace
-   version = "1.0">
-   <FileRef
-      location = "self:">
-   </FileRef>
-</Workspace>
-
-
-### File: SkiTrails.xcodeproj/project.xcworkspace/xcshareddata/swiftpm/Package.resolved
-{
-  "pins" : [
-    {
-      "identity" : "mapbox-common-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mapbox/mapbox-common-ios.git",
-      "state" : {
-        "revision" : "ce35687685331b1690149637d25ddc47d88146de",
-        "version" : "23.11.2"
-      }
-    },
-    {
-      "identity" : "mapbox-core-maps-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mapbox/mapbox-core-maps-ios.git",
-      "state" : {
-        "revision" : "95bb164a4ca016cb6fce3cdfb13c4902bf8b8c18",
-        "version" : "10.19.2"
-      }
-    },
-    {
-      "identity" : "mapbox-maps-ios",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mapbox/mapbox-maps-ios.git",
-      "state" : {
-        "revision" : "0af0d49fe085923af5dcd00714ec0c6c129a44f3",
-        "version" : "10.19.1"
-      }
-    },
-    {
-      "identity" : "sentry-cocoa",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/getsentry/sentry-cocoa.git",
-      "state" : {
-        "revision" : "f45e9c62d7a4d9258ac3cf35a3acf9dbab4481d1",
-        "version" : "8.43.0"
-      }
-    },
-    {
-      "identity" : "turf-swift",
-      "kind" : "remoteSourceControl",
-      "location" : "https://github.com/mapbox/turf-swift.git",
-      "state" : {
-        "revision" : "213050191cfcb3d5aa76e1fa90c6ff1e182a42ca",
-        "version" : "2.8.0"
-      }
-    }
-  ],
-  "version" : 2
-}
-
 
 ### File: App/SkiTrails/Info.plist
 <?xml version="1.0" encoding="UTF-8"?>
@@ -904,7 +752,7 @@ targets:
 
 ### File: App/SkiTrails/SkiTrailsApp.swift
 import SwiftUI
-import Sentry
+// import Sentry
 import SkiTrailsCore
 
 @main
@@ -912,6 +760,8 @@ struct SkiTrailsApp: App {
     @StateObject private var appState = AppState()
     
     init() {
+        // Sentry initialization temporarily removed
+        /*
         do {
             let dsn = try CoreConfig.getDSN()
             SentrySDK.start { options in
@@ -922,16 +772,15 @@ struct SkiTrailsApp: App {
             }
         } catch let error as CoreConfig.Error {
             switch error {
-            case .fileNotFound(let path):
-                print("Failed to initialize Sentry: .env file not found at \(path)")
-            case .invalidFormat:
-                print("Failed to initialize Sentry: Invalid .env file format")
             case .missingKey(let key):
-                print("Failed to initialize Sentry: Missing key \(key) in .env file")
+                print("Failed to initialize Sentry: Missing key \(key) in environment")
+            case .invalidURLFormat(let url):
+                print("Failed to initialize Sentry: Invalid URL format for \(url)")
             }
         } catch {
             print("Failed to initialize Sentry: \(error.localizedDescription)")
         }
+        */
     }
     
     var body: some Scene {
@@ -941,6 +790,7 @@ struct SkiTrailsApp: App {
         }
     }
 } 
+
 
 ### File: App/SkiTrails/Bundle.docc/Configuration.plist
 <?xml version="1.0" encoding="UTF-8"?>
@@ -982,13 +832,13 @@ struct SkiTrailsApp: App {
 <plist version="1.0">
 <dict>
     <key>NSLocationWhenInUseUsageDescription</key>
-    <string>We need your location to show you where you are on the ski resort map...</string>
+    <string>We need your location to show you where you are on the ski resort map and provide turn-by-turn navigation.</string>
     <key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
-    <string>We need your location to show you where you are on the ski resort map...</string>
+    <string>We need your location to show you where you are on the ski resort map and provide turn-by-turn navigation, even when the app is in the background.</string>
     <key>NSLocationAlwaysUsageDescription</key>
-    <string>We need your location to show you where you are on the ski resort map...</string>
+    <string>We need your location to show you where you are on the ski resort map and provide turn-by-turn navigation, even when the app is in the background.</string>
     <key>NSCameraUsageDescription</key>
-    <string>We need camera access to show ski runs in augmented reality...</string>
+    <string>We need camera access to show ski runs in augmented reality overlaid on the mountain.</string>
     <key>UIBackgroundModes</key>
     <array>
         <string>location</string>
@@ -1047,64 +897,103 @@ class MapViewModel: ObservableObject {
 ### File: App/SkiTrails/ViewModels/NavigationViewModel.swift
 import SwiftUI
 import SkiTrailsCore
-import Combine
 import CoreLocation
 
 @MainActor
 class NavigationViewModel: ObservableObject {
-    @Published private(set) var currentRoute: SkiTrailsCore.Route?
-    @Published private(set) var isNavigating = false
-    @Published private(set) var isCalculating = false
-    @Published private(set) var error: Error?
+    @Published var skillLevel: Run.Difficulty = .intermediate
+    @Published var avoidCrowds = false
+    @Published var preferLessStrenuous = false
+    @Published var showRouteSelection = false
+    @Published var startPoint: Run?
+    @Published var endPoint: Run?
+    @Published var currentRoute: Route?
+    @Published var isNavigating = false
+    @Published var nextInstruction: NavigationInstruction?
     
-    private let routingEngine: RoutingEngine
-    
-    init() {
-        self.routingEngine = RoutingEngine.shared
+    struct NavigationInstruction {
+        let text: String
+        let icon: String
     }
     
-    func startNavigation(
-        from start: CLLocationCoordinate2D,
-        to end: CLLocationCoordinate2D,
-        difficulty: SkiTrailsCore.SkiDifficulty = .intermediate,
-        preferences: RoutePreferences = RoutePreferences(
-            avoidCrowds: false,
-            preferLessStrenuous: false,
-            maxWaitTime: nil
+    private var appState: AppState
+    
+    init(appState: AppState) {
+        self.appState = appState
+    }
+    
+    func updateAppState(_ newAppState: AppState) {
+        self.appState = newAppState
+    }
+    
+    @MainActor
+    static func create() async -> NavigationViewModel {
+        let appState = AppState()
+        return NavigationViewModel(appState: appState)
+    }
+    
+    var canStartNavigation: Bool {
+        endPoint != nil && (startPoint != nil || appState.locationManager.currentLocation != nil)
+    }
+    
+    func startNavigation() async {
+        guard let endPoint else { return }
+        
+        let preferences = RoutePreferences(
+            avoidCrowds: avoidCrowds,
+            preferLessStrenuous: preferLessStrenuous
         )
-    ) async {
-        isCalculating = true
-        error = nil
         
         do {
-            let route = try await routingEngine.findRoute(
-                from: start,
-                to: end,
-                difficulty: difficulty,
-                preferences: preferences
-            )
-            currentRoute = route
+            if let startPoint {
+                currentRoute = try await RoutingEngine.shared.findRoute(
+                    from: CLLocationCoordinate2D(
+                        latitude: startPoint.startLocation.latitude,
+                        longitude: startPoint.startLocation.longitude
+                    ),
+                    to: CLLocationCoordinate2D(
+                        latitude: endPoint.endLocation.latitude,
+                        longitude: endPoint.endLocation.longitude
+                    ),
+                    difficulty: skillLevel,
+                    preferences: preferences
+                )
+            } else if let currentLocation = appState.locationManager.currentLocation {
+                // Use current location
+                currentRoute = try await RoutingEngine.shared.findRoute(
+                    from: currentLocation.coordinate,
+                    to: CLLocationCoordinate2D(
+                        latitude: endPoint.endLocation.latitude,
+                        longitude: endPoint.endLocation.longitude
+                    ),
+                    difficulty: skillLevel,
+                    preferences: preferences
+                )
+            } else {
+                await ErrorHandler.shared.handle(NavigationError.noCurrentLocation)
+                return
+            }
+            
             isNavigating = true
         } catch {
-            self.error = error
+            await ErrorHandler.shared.handle(error)
         }
-        
-        isCalculating = false
     }
     
-    func endNavigation() {
+    func stopNavigation() {
         isNavigating = false
         currentRoute = nil
-        error = nil
+        startPoint = nil
+        endPoint = nil
     }
     
     enum NavigationError: LocalizedError {
-        case noRouteFound
+        case noCurrentLocation
         
         var errorDescription: String? {
             switch self {
-            case .noRouteFound:
-                return "No suitable route found between the selected points"
+            case .noCurrentLocation:
+                return "Unable to get current location. Please ensure location services are enabled."
             }
         }
     }
@@ -1123,38 +1012,61 @@ class ResortViewModel: ObservableObject {
     
     private var statusRefreshTask: Task<Void, Never>?
     private let refreshInterval: TimeInterval = 60 // Refresh every minute
+    private var isActive = false
     
-    init() {
-        startStatusRefreshTimer()
-    }
+    init() {}
     
     deinit {
         statusRefreshTask?.cancel()
+        statusRefreshTask = nil
+    }
+    
+    func onAppear() {
+        isActive = true
+        startStatusRefreshTimer()
+    }
+    
+    func onDisappear() {
+        isActive = false
+        stopStatusRefresh()
     }
     
     func selectResort(_ resort: Resort) {
         selectedResort = resort
+        if isActive {
+            startStatusRefreshTimer()
+        }
     }
     
     private func startStatusRefreshTimer() {
+        stopStatusRefresh()
         statusRefreshTask = Task {
-            while !Task.isCancelled {
+            while !Task.isCancelled && isActive {
                 await refreshResortStatus()
                 try? await Task.sleep(nanoseconds: UInt64(refreshInterval * 1_000_000_000))
             }
         }
     }
     
-    private func refreshResortStatus() async {
+    private func stopStatusRefresh() {
+        statusRefreshTask?.cancel()
+        statusRefreshTask = nil
+    }
+    
+    func refreshResortStatus() async {
         guard let resort = selectedResort else { return }
         do {
             isLoading = true
-            let updatedResort = try await APIClient.shared.fetchResortInfo(id: resort.id.uuidString)
-            selectedResort = updatedResort
-            isLoading = false
+            let updatedResort = try await APIClient.shared.fetchResortInfo(id: resort.id.rawValue)
+            if isActive { // Check if still active before updating UI
+                selectedResort = updatedResort
+                isLoading = false
+            }
         } catch {
-            self.error = error
-            isLoading = false
+            if isActive { // Check if still active before updating UI
+                self.error = error
+                isLoading = false
+            }
         }
     }
 } 
@@ -1335,371 +1247,38 @@ import SwiftUI
 import Combine
 import CoreLocation
 import Foundation
-
-// Import ViewModels
-@_spi(Internal) import SkiTrailsCore
+import SkiTrailsCore
 
 @MainActor
 class AppState: ObservableObject {
-    // MARK: - Published Properties
-    
-    @Published var locationManager = LocationManager()
+    @Published var resorts: [Resort] = []
     @Published var selectedResort: Resort?
-    @Published var selectedDifficulty: SkiTrailsCore.SkiDifficulty?
-    @Published var isLoading = false
-    @Published var error: UserFacingError?
-    
-    // Navigation state
-    @Published var navigationPath = NavigationPath()
     @Published var activeRoute: Route?
+    @Published var locationManager = LocationManager()
     
-    // Route coordinates for navigation
-    @Published var routeCoordinates: [CLLocationCoordinate2D] = []
-    
-    // User preferences
-    @Published var userSkillLevel: SkiTrailsCore.SkiDifficulty = .beginner
-    @Published var preferLessStrenuous = false
-    @Published var avoidCrowdedRuns = false
-    
-    // MARK: - Private Properties
-    
-    private var cancellables = Set<AnyCancellable>()
+    private let apiClient = APIClient.shared
     private let errorHandler = ErrorHandler.shared
-    private var statusRefreshTask: Task<Void, Never>?
-    
-    // MARK: - Initialization
     
     init() {
-        setupSubscriptions()
-        startStatusRefreshTimer()
         locationManager.requestAuthorization()
     }
     
-    deinit {
-        statusRefreshTask?.cancel()
+    static var preview: AppState {
+        let state = AppState()
+        state.resorts = [Resort.preview]
+        state.selectedResort = Resort.preview
+        return state
     }
     
-    // MARK: - Public Methods
-    
-    func clearError() {
-        error = nil
-    }
-    
-    func setLoading(_ loading: Bool) {
-        isLoading = loading
-    }
-    
-    func handleError(_ error: Error, context: ErrorContext? = nil) async {
-        self.error = await errorHandler.handleUserFacing(error, context: context)
-    }
-    
-    // MARK: - Resort Data
-    
-    func loadResort(id: String) async {
-        setLoading(true)
-        defer { setLoading(false) }
-        
+    func loadResorts() async {
         do {
-            // Fetch resort info
-            let resort = try await APIClient.shared.fetchResortInfo(id: id)
-            
-            // Debug logging
-            if EnvConfig.isDebugMode {
-                print("\n=== Resort Data Debug Info ===")
-                print("Resort: \(resort.name)")
-                print("Location: (\(resort.location.latitude), \(resort.location.longitude))")
-                print("\nLifts (\(resort.lifts.count)):")
-                for lift in resort.lifts {
-                    print("- \(lift.name) at (\(lift.latitude), \(lift.longitude))")
-                }
-                print("\nRuns (\(resort.runs.count)):")
-                for run in resort.runs {
-                    print("- \(run.name) (\(run.difficulty))")
-                    print("  Top: (\(run.topLatitude), \(run.topLongitude))")
-                    print("  Bottom: (\(run.bottomLatitude), \(run.bottomLongitude))")
-                    print("  Length: \(run.length)m, Drop: \(run.verticalDrop)m")
-                }
-                print("==============================\n")
-            }
-            
-            // Start async tasks for weather and lift status
-            async let weather = APIClient.shared.fetchWeather(for: resort)
-            async let lifts = APIClient.shared.fetchLiftStatus(for: resort)
-            
-            // Wait for all data
-            var updatedResort = resort
-            updatedResort.weather = try await weather
-            updatedResort.lifts = try await lifts
-            
-            // Update state
-            selectedResort = updatedResort
-            
-            // Initialize routing engine with resort data
-            await RoutingEngine.shared.buildGraph(for: updatedResort)
-            
-            // Debug print the graph
-            if EnvConfig.isDebugMode {
-                await RoutingEngine.shared.debugPrintGraph()
-            }
-            
+            resorts = try await apiClient.fetchResortList()
         } catch {
-            await handleError(error, context: .api(endpoint: "resort/\(id)"))
-        }
-    }
-    
-    func refreshResortStatus() async {
-        guard let resort = selectedResort else { return }
-        
-        do {
-            // Re-fetch only the lifts for now, since we have no separate runs status API
-            let updatedLifts = try await APIClient.shared.fetchLiftStatus(for: resort)
-            
-            // Merge updates
-            var updatedResort = resort
-            updatedResort.lifts = updatedLifts
-            
-            // Update state
-            selectedResort = updatedResort
-            
-            // Re-build graph so closed lifts are excluded from routing
-            await RoutingEngine.shared.buildGraph(for: updatedResort)
-            
-            if EnvConfig.isDebugMode {
-                print("[Status Refresh] Lifts updated at \(Date())")
-                await RoutingEngine.shared.debugPrintGraph()
-            }
-        } catch {
-            await handleError(error, context: .api(endpoint: "refreshStatus"))
-        }
-    }
-    
-    // MARK: - Navigation
-    
-    func startNavigation(
-        from startPoint: CLLocationCoordinate2D,
-        to endPoint: CLLocationCoordinate2D
-    ) async {
-        do {
-            guard let resort = selectedResort else {
-                throw RoutingError.graphNotInitialized
-            }
-            
-            // Calculate route
-            let route = try await RoutingEngine.shared.findRoute(
-                from: startPoint,
-                to: endPoint,
-                difficulty: userSkillLevel,
-                preferences: RoutePreferences(
-                    avoidCrowds: avoidCrowdedRuns,
-                    preferLessStrenuous: preferLessStrenuous,
-                    maxWaitTime: nil
-                )
-            )
-            
-            // Extract coordinates from route segments
-            let routeCoordinates = route.segments.flatMap { segment in
-                segment.path.map { location in
-                    CLLocationCoordinate2D(
-                        latitude: location.latitude,
-                        longitude: location.longitude
-                    )
-                }
-            }
-            
-            // Update state
-            activeRoute = route
-            self.routeCoordinates = routeCoordinates
-            
-        } catch {
-            await handleError(
-                error,
-                context: .navigation(
-                    startPoint: startPoint,
-                    endPoint: endPoint,
-                    difficulty: userSkillLevel
-                )
-            )
-        }
-    }
-    
-    func endNavigation() {
-        activeRoute = nil
-        routeCoordinates = []
-    }
-    
-    // MARK: - Private Methods
-    
-    private func setupSubscriptions() {
-        // Add Combine subscriptions for real-time updates
-        // For example, periodic weather updates or lift status changes
-    }
-    
-    private func startStatusRefreshTimer() {
-        // Cancel any existing task
-        statusRefreshTask?.cancel()
-        
-        // Start a new refresh task
-        statusRefreshTask = Task {
-            while !Task.isCancelled {
-                do {
-                    // Wait 60 seconds between refreshes
-                    try await Task.sleep(nanoseconds: 60_000_000_000)
-                    await refreshResortStatus()
-                } catch {
-                    // If Task is cancelled or fails, break the loop
-                    break
-                }
-            }
-        }
-    }
-}
-
-// MARK: - Supporting Types
-struct Resort: Identifiable, Codable {
-    let id: String
-    let name: String
-    let location: Location
-    var lifts: [Lift]
-    var runs: [Run]
-    var weather: WeatherInfo?
-    
-    struct Location: Codable {
-        let latitude: Double
-        let longitude: Double
-        let altitude: Double
-    }
-}
-
-struct Lift: Identifiable, Codable {
-    let id: String
-    let name: String
-    var status: Status
-    let capacity: Int
-    let waitTime: Int?
-    let latitude: Double
-    let longitude: Double
-    
-    enum Status: String, Codable {
-        case open
-        case closed
-        case hold
-        case scheduled
-    }
-}
-
-struct Run: Identifiable, Codable {
-    let id: String
-    let name: String
-    let difficulty: SkiTrailsCore.SkiDifficulty
-    var status: Status
-    let length: Double // in meters
-    let verticalDrop: Double // in meters
-    let latitude: Double
-    let longitude: Double
-    let topLatitude: Double
-    let topLongitude: Double
-    let bottomLatitude: Double
-    let bottomLongitude: Double
-    
-    enum Status: String, Codable {
-        case open
-        case closed
-        case grooming
-    }
-    
-    init(id: String, name: String, difficulty: SkiTrailsCore.SkiDifficulty, status: Status = .open,
-         length: Double, verticalDrop: Double, latitude: Double, longitude: Double,
-         topLatitude: Double? = nil, topLongitude: Double? = nil,
-         bottomLatitude: Double? = nil, bottomLongitude: Double? = nil) {
-        self.id = id
-        self.name = name
-        self.difficulty = difficulty
-        self.status = status
-        self.length = length
-        self.verticalDrop = verticalDrop
-        self.latitude = latitude
-        self.longitude = longitude
-        self.topLatitude = topLatitude ?? latitude
-        self.topLongitude = topLongitude ?? longitude
-        self.bottomLatitude = bottomLatitude ?? latitude
-        self.bottomLongitude = bottomLongitude ?? longitude
-    }
-    
-    enum CodingKeys: String, CodingKey {
-        case id, name, difficulty, status, length, verticalDrop
-        case latitude, longitude
-        case topLatitude, topLongitude
-        case bottomLatitude, bottomLongitude
-    }
-    
-    init(from decoder: Decoder) throws {
-        let container = try decoder.container(keyedBy: CodingKeys.self)
-        id = try container.decode(String.self, forKey: .id)
-        name = try container.decode(String.self, forKey: .name)
-        difficulty = try container.decode(SkiTrailsCore.SkiDifficulty.self, forKey: .difficulty)
-        status = try container.decode(Status.self, forKey: .status)
-        length = try container.decode(Double.self, forKey: .length)
-        verticalDrop = try container.decode(Double.self, forKey: .verticalDrop)
-        latitude = try container.decode(Double.self, forKey: .latitude)
-        longitude = try container.decode(Double.self, forKey: .longitude)
-        
-        // Try to decode top/bottom coordinates, fall back to main coordinates
-        topLatitude = try container.decodeIfPresent(Double.self, forKey: .topLatitude) ?? latitude
-        topLongitude = try container.decodeIfPresent(Double.self, forKey: .topLongitude) ?? longitude
-        bottomLatitude = try container.decodeIfPresent(Double.self, forKey: .bottomLatitude) ?? latitude
-        bottomLongitude = try container.decodeIfPresent(Double.self, forKey: .bottomLongitude) ?? longitude
-    }
-    
-    func encode(to encoder: Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(id, forKey: .id)
-        try container.encode(name, forKey: .name)
-        try container.encode(difficulty, forKey: .difficulty)
-        try container.encode(status, forKey: .status)
-        try container.encode(length, forKey: .length)
-        try container.encode(verticalDrop, forKey: .verticalDrop)
-        try container.encode(latitude, forKey: .latitude)
-        try container.encode(longitude, forKey: .longitude)
-        try container.encode(topLatitude, forKey: .topLatitude)
-        try container.encode(topLongitude, forKey: .topLongitude)
-        try container.encode(bottomLatitude, forKey: .bottomLatitude)
-        try container.encode(bottomLongitude, forKey: .bottomLongitude)
-    }
-}
-
-struct WeatherInfo: Codable {
-    let temperature: Double
-    let snowDepth: Double
-    let windSpeed: Double
-    let visibility: Double
-    let forecast: String
-    let lastUpdated: Date
-}
-
-struct Route {
-    let segments: [Segment]
-    let totalDistance: Double
-    let estimatedTime: TimeInterval
-    let difficulty: SkiTrailsCore.SkiDifficulty
-    
-    struct Segment {
-        let type: SegmentType
-        let path: [Location]
-        let distance: Double
-        
-        enum SegmentType {
-            case run(Run)
-            case lift(Lift)
-            case connection
-        }
-        
-        struct Location {
-            let latitude: Double
-            let longitude: Double
-            let altitude: Double
+            await errorHandler.handle(error)
         }
     }
 } 
+
 
 ### File: App/SkiTrails/Models/HeavenlyData.swift
 import Foundation
@@ -1995,486 +1574,187 @@ extension SkiDifficulty {
   }
 } 
 
-### File: App/SkiTrails/Views/ARResortView.swift
-import SwiftUI
-
-struct ARResortView: View {
-    var body: some View {
-        ContentUnavailableView(
-            "AR View Coming Soon",
-            systemImage: "camera.viewfinder",
-            description: Text("This feature is under development")
-        )
-    }
-}
-
-#Preview {
-    ARResortView()
-} 
-
 ### File: App/SkiTrails/Views/ActiveNavigationView.swift
 import SwiftUI
-import MapKit
 import SkiTrailsCore
+
+typealias NavigationInstruction = NavigationViewModel.NavigationInstruction
 
 struct ActiveNavigationView: View {
     @ObservedObject var viewModel: NavigationViewModel
-    @Environment(\.dismiss) private var dismiss
+    @EnvironmentObject private var appState: AppState
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if let route = viewModel.currentRoute {
+                    RouteContentView(route: route, viewModel: viewModel)
+                } else {
+                    ProgressView()
+                }
+            }
+            .navigationTitle("Navigation")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .navigationBarTrailing) {
+                    Button("Stop") {
+                        viewModel.stopNavigation()
+                    }
+                }
+            }
+        }
+    }
+}
+
+private struct RouteContentView: View {
+    let route: Route
+    let viewModel: NavigationViewModel
     
     var body: some View {
         VStack(spacing: 0) {
-            if let route = viewModel.currentRoute {
-                RouteOverlayView(route: route)
-                    .overlay(alignment: .topTrailing) {
-                        Button(action: { viewModel.endNavigation() }) {
-                            Image(systemName: "xmark.circle.fill")
-                                .font(.title)
-                                .foregroundColor(.secondary)
-                                .padding()
-                        }
-                    }
-                
-                VStack(spacing: 16) {
-                    HStack {
-                        VStack(alignment: .leading) {
-                            Text("Estimated Time")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(formatDuration(route.estimatedTime))
-                                .font(.title2)
-                                .bold()
-                        }
-                        
-                        Spacer()
-                        
-                        VStack(alignment: .trailing) {
-                            Text("Distance")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(String(format: "%.1f km", route.totalDistance / 1000))
-                                .font(.title2)
-                                .bold()
-                        }
-                    }
-                    
-                    Divider()
-                    
-                    ScrollView(.horizontal, showsIndicators: false) {
-                        HStack(spacing: 12) {
-                            ForEach(route.segments.indices, id: \.self) { index in
-                                let segment = route.segments[index]
-                                SegmentCard(
-                                    segment: segment,
-                                    isFirst: index == 0,
-                                    isLast: index == route.segments.count - 1
-                                )
-                            }
-                        }
-                        .padding(.horizontal)
+            RouteOverlayView(route: route)
+                .frame(maxHeight: .infinity)
+            
+            RouteInfoView(route: route, viewModel: viewModel)
+        }
+    }
+}
+
+private struct RouteInfoView: View {
+    let route: Route
+    let viewModel: NavigationViewModel
+    
+    var body: some View {
+        VStack(spacing: 16) {
+            if let nextInstruction = viewModel.nextInstruction {
+                NextInstructionView(instruction: nextInstruction)
+            }
+            
+            RouteStatsView(route: route)
+            
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: 12) {
+                    ForEach(route.segments.indices, id: \.self) { index in
+                        SegmentCard(segment: route.segments[index])
                     }
                 }
-                .padding()
-                .background(.ultraThinMaterial)
+                .padding(.horizontal)
             }
         }
-        .navigationBarHidden(true)
-        .ignoresSafeArea(edges: .top)
+        .padding(.vertical)
+        .background(.ultraThinMaterial)
+    }
+}
+
+private struct NextInstructionView: View {
+    let instruction: NavigationInstruction
+    
+    var body: some View {
+        HStack {
+            Image(systemName: instruction.icon)
+                .font(.title2)
+            Text(instruction.text)
+                .font(.headline)
+        }
+        .padding()
+        .frame(maxWidth: .infinity)
+        .background(.ultraThinMaterial)
+    }
+}
+
+private struct RouteStatsView: View {
+    let route: Route
+    
+    var body: some View {
+        HStack {
+            Label(
+                "\(Int(route.totalDistance)) meters",
+                systemImage: "ruler"
+            )
+            
+            Spacer()
+            
+            Label(
+                formatDuration(route.estimatedTime),
+                systemImage: "clock"
+            )
+        }
+        .font(.headline)
+        .padding(.horizontal)
     }
     
-    private func formatDuration(_ timeInterval: TimeInterval) -> String {
-        let hours = Int(timeInterval) / 3600
-        let minutes = Int(timeInterval) / 60 % 60
-        
-        if hours > 0 {
-            return String(format: "%dh %dm", hours, minutes)
-        } else {
-            return String(format: "%d min", minutes)
-        }
+    private func formatDuration(_ seconds: TimeInterval) -> String {
+        let minutes = Int(seconds / 60)
+        return "\(minutes) min"
     }
 }
 
 struct SegmentCard: View {
     let segment: Route.Segment
-    let isFirst: Bool
-    let isLast: Bool
     
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
                 Image(systemName: iconName)
-                    .font(.title2)
+                    .foregroundColor(iconColor)
                 
-                Text(title)
+                Text(segmentName)
                     .font(.headline)
             }
-            
-            Text(String(format: "%.0f m", segment.distance))
-                .font(.subheadline)
-                .foregroundColor(.secondary)
             
             if case .run(let run) = segment.type {
                 DifficultyIndicator(difficulty: run.difficulty)
             }
-        }
-        .padding()
-        .background(Color(.secondarySystemBackground))
-        .cornerRadius(12)
-    }
-    
-    private var iconName: String {
-        if isFirst {
-            return "location.circle.fill"
-        } else if isLast {
-            return "flag.circle.fill"
-        } else {
-            switch segment.type {
-            case .run:
-                return "arrow.down.circle.fill"
-            case .lift:
-                return "arrow.up.circle.fill"
-            case .connection:
-                return "arrow.right.circle.fill"
-            }
-        }
-    }
-    
-    private var title: String {
-        if isFirst {
-            return "Start"
-        } else if isLast {
-            return "Finish"
-        } else {
-            switch segment.type {
-            case .run(let run):
-                return run.name
-            case .lift(let lift):
-                return lift.name
-            case .connection:
-                return "Connection"
-            }
-        }
-    }
-}
-
-struct DifficultyIndicator: View {
-    let difficulty: Run.Difficulty
-    
-    var body: some View {
-        Text(difficulty.rawValue.capitalized)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(difficultyColor.opacity(0.2))
-            .foregroundColor(difficultyColor)
-            .clipShape(Capsule())
-    }
-    
-    private var difficultyColor: Color {
-        switch difficulty {
-        case .beginner:
-            return .green
-        case .intermediate:
-            return .blue
-        case .advanced:
-            return .black
-        case .expert:
-            return .purple
-        }
-    }
-}
-
-#Preview {
-    ActiveNavigationView(viewModel: NavigationViewModel())
-} 
-
-### File: App/SkiTrails/Views/ContentView.swift
-import SwiftUI
-import MapKit
-import SkiTrailsCore
-import CoreLocation
-
-struct ContentView: View {
-    @EnvironmentObject private var appState: AppState
-    @State private var selectedTab = 0
-    
-    var body: some View {
-        if #available(iOS 16.0, *) {
-            NavigationStack {
-                mainContent
-            }
-        } else {
-            NavigationView {
-                mainContent
-            }.navigationViewStyle(.stack)
-        }
-    }
-    
-    private var mainContent: some View {
-        TabView(selection: $selectedTab) {
-            ResortListView()
-                .tabItem { Label("Resorts", systemImage: "mountain.2") }
-                .tag(0)
             
-            MapView()
-                .tabItem { Label("Map", systemImage: "map") }
-                .tag(1)
-            
-            TrailStatusView()
-                .tabItem { Label("Trails", systemImage: "figure.skiing.downhill") }
-                .tag(2)
-            
-            NavigationView {
-                NavigationSetupView(viewModel: NavigationViewModel())
-            }
-            .tabItem { Label("Navigation", systemImage: "location.north.circle") }
-            .tag(3)
-            
-            ARResortView()
-                .tabItem { Label("AR View", systemImage: "camera.viewfinder") }
-                .tag(4)
-        }
-    }
-}
-
-struct ResortListView: View {
-    @StateObject private var viewModel = ResortViewModel()
-    @EnvironmentObject private var appState: AppState
-    
-    var body: some View {
-        Group {
-            if viewModel.isLoading {
-                ProgressView()
-            } else {
-                List {
-                    ForEach(appState.resorts) { resort in
-                        ResortRowView(resort: resort)
-                            .onTapGesture {
-                                viewModel.selectResort(resort)
-                            }
-                    }
-                }
-            }
-        }
-        .navigationTitle("Ski Resorts")
-        .task {
-            await appState.loadResorts()
-        }
-        .alert(
-            "Error",
-            isPresented: Binding(
-                get: { viewModel.error != nil },
-                set: { if !$0 { viewModel.error = nil } }
-            )
-        ) { _ in
-            Button("OK", role: .cancel) {}
-        } message: { error in
-            Text(error.localizedDescription)
-        }
-    }
-}
-
-struct ResortRowView: View {
-    let resort: Resort
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(resort.name)
-                .font(.headline)
-            
-            if let weather = resort.weather {
-                HStack {
-                    Image(systemName: "thermometer")
-                    Text("\(Int(weather.temperature))°F")
-                    Text("•")
-                    Text(weather.conditions)
-                }
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            }
-            
-            HStack {
-                StatusIndicator(
-                    count: resort.lifts.filter { $0.status == .open }.count,
-                    total: resort.lifts.count,
-                    type: "Lifts"
-                )
-                
-                Spacer()
-                
-                StatusIndicator(
-                    count: resort.runs.filter { $0.status == .open }.count,
-                    total: resort.runs.count,
-                    type: "Runs"
-                )
-            }
-            .padding(.top, 4)
-        }
-        .padding(.vertical, 8)
-    }
-}
-
-struct StatusIndicator: View {
-    let count: Int
-    let total: Int
-    let type: String
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(count > 0 ? .green : .red)
-                .frame(width: 8, height: 8)
-            
-            Text("\(count)/\(total) \(type)")
+            Text("\(Int(segment.distance)) meters")
                 .font(.caption)
                 .foregroundColor(.secondary)
         }
-    }
-}
-
-struct MapView: View {
-    @StateObject private var viewModel = MapViewModel()
-    
-    var body: some View {
-        ZStack(alignment: .bottom) {
-            Map(coordinateRegion: $viewModel.region) {
-                if let resort = viewModel.selectedResort {
-                    Marker(resort.name, coordinate: CLLocationCoordinate2D(
-                        latitude: resort.location.latitude,
-                        longitude: resort.location.longitude
-                    ))
-                }
-            }
-            
-            if let resort = viewModel.selectedResort {
-                ResortDetailCard(resort: resort)
-                    .padding()
-                    .transition(.move(edge: .bottom))
-            }
-        }
-        .navigationTitle("Resort Map")
-        .animation(.spring(), value: viewModel.selectedResort)
-    }
-}
-
-struct ResortDetailCard: View {
-    let resort: Resort
-    
-    var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
-            Text(resort.name)
-                .font(.headline)
-            
-            if let weather = resort.weather {
-                HStack {
-                    Image(systemName: "thermometer")
-                    Text("\(Int(weather.temperature))°F")
-                    Text("•")
-                    Text(weather.conditions)
-                }
-                .font(.subheadline)
-                .foregroundColor(.secondary)
-            }
-        }
         .padding()
-        .background(.ultraThinMaterial)
-        .cornerRadius(10)
+        .background(Color(uiColor: .secondarySystemGroupedBackground))
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
-}
-
-struct TrailStatusView: View {
-    @EnvironmentObject private var appState: AppState
-    @StateObject private var viewModel = ResortViewModel()
     
-    var body: some View {
-        Group {
-            if viewModel.isLoading {
-                ProgressView()
-            } else if let resort = viewModel.selectedResort {
-                List {
-                    Section("Lifts") {
-                        ForEach(resort.lifts) { lift in
-                            LiftStatusRow(lift: lift)
-                        }
-                    }
-                    
-                    Section("Runs") {
-                        ForEach(resort.runs) { run in
-                            RunStatusRow(run: run)
-                        }
-                    }
-                }
-            } else {
-                ContentUnavailableView(
-                    "No Resort Selected",
-                    systemImage: "mountain.2",
-                    description: Text("Select a resort to view trail status")
-                )
-            }
-        }
-        .navigationTitle("Trail Status")
-        .refreshable {
-            if let resort = viewModel.selectedResort {
-                await viewModel.selectResort(resort)
-            }
+    private var iconName: String {
+        switch segment.type {
+        case .run:
+            return "arrow.down.forward.circle.fill"
+        case .lift:
+            return "arrow.up.forward.circle.fill"
+        case .connection:
+            return "arrow.right.circle.fill"
         }
     }
-}
-
-struct LiftStatusRow: View {
-    let lift: Lift
     
-    var body: some View {
-        HStack {
-            Text(lift.name)
-            
-            Spacer()
-            
-            StatusBadge(status: lift.status)
+    private var iconColor: Color {
+        switch segment.type {
+        case .run:
+            return .blue
+        case .lift:
+            return .green
+        case .connection:
+            return .orange
         }
     }
-}
-
-struct RunStatusRow: View {
-    let run: Run
     
-    var body: some View {
-        HStack {
-            VStack(alignment: .leading) {
-                Text(run.name)
-                
-                HStack {
-                    DifficultyIndicator(difficulty: run.difficulty)
-                    Text("\(Int(run.length))m • \(Int(run.verticalDrop))m vert")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Spacer()
-            
-            StatusBadge(status: run.status)
+    private var segmentName: String {
+        switch segment.type {
+        case .run(let run):
+            return run.name
+        case .lift(let lift):
+            return lift.name
+        case .connection:
+            return "Connection"
         }
-    }
-}
-
-struct StatusBadge: View {
-    let status: Status
-    
-    var body: some View {
-        Text(status.rawValue.capitalized)
-            .font(.caption)
-            .padding(.horizontal, 8)
-            .padding(.vertical, 4)
-            .background(status.color.opacity(0.2))
-            .foregroundColor(status.color)
-            .clipShape(Capsule())
     }
 }
 
 #Preview {
-    ContentView()
-        .environmentObject(AppState())
+    let appState = AppState()
+    return ActiveNavigationView(viewModel: NavigationViewModel(appState: appState))
+        .environmentObject(appState)
 } 
+
 
 ### File: App/SkiTrails/Views/ErrorAlertView.swift
 import SwiftUI
@@ -2565,10 +1845,16 @@ struct MapSelectionView: View {
     }
     
     var body: some View {
-        NavigationView {
-            Map(coordinateRegion: $region,
-                annotationItems: annotations) { item in
-                MapMarker(coordinate: item.coordinate)
+        NavigationStack {
+            Map {
+                ForEach(annotations) { annotation in
+                    Marker("Selected Location", coordinate: annotation.coordinate)
+                }
+                UserAnnotation()
+            }
+            .mapControls {
+                MapUserLocationButton()
+                MapCompass()
             }
             .onTapGesture { _ in
                 withAnimation {
@@ -2607,7 +1893,7 @@ import SwiftUI
 import MapboxMaps
 import SkiTrailsCore
 
-struct MapView: View {
+struct SkiMapView: View {
     @StateObject private var viewModel = MapViewModel()
     @EnvironmentObject private var appState: AppState
     
@@ -2661,7 +1947,7 @@ struct MapViewRepresentable: UIViewControllerRepresentable {
 
 class MapViewController: UIViewController {
     weak var delegate: MapViewControllerDelegate?
-    private var mapView: MapView?
+    private var mapView: MapboxMaps.MapView?
     
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -2674,7 +1960,7 @@ class MapViewController: UIViewController {
             let resourceOptions = ResourceOptions(accessToken: accessToken)
             let mapInitOptions = MapInitOptions(resourceOptions: resourceOptions)
             
-            let mapView = MapView(frame: view.bounds, mapInitOptions: mapInitOptions)
+            let mapView = MapboxMaps.MapView(frame: view.bounds, mapInitOptions: mapInitOptions)
             mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
             
             view.addSubview(mapView)
@@ -2802,27 +2088,37 @@ struct MapboxMapView: UIViewRepresentable {
                                        cameraOptions: cameraOptions)
         
         let containerView = UIView()
-        containerView.autoresizingMask = [UIView.AutoresizingMask.flexibleWidth, UIView.AutoresizingMask.flexibleHeight]
+        containerView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         
-        let mapView = MapView(frame: containerView.bounds, mapInitOptions: initOptions)
-        mapView.autoresizingMask = [UIView.AutoresizingMask.flexibleWidth, UIView.AutoresizingMask.flexibleHeight]
+        let mapView = MapboxMaps.MapView(frame: containerView.bounds, mapInitOptions: initOptions)
+        mapView.autoresizingMask = [.flexibleWidth, .flexibleHeight]
         containerView.addSubview(mapView)
         
         // Store mapView in coordinator for later access
         context.coordinator.mapView = mapView
         
         // Observe style loaded event
-        mapView.mapboxMap.onStyleLoaded.observe { _ in
+        mapView.mapboxMap.onNext(event: .styleLoaded) { _ in
             // Map style finished loading
+            // Add any style-dependent layers or sources here
         }
         
         return containerView
     }
     
     func updateUIView(_ uiView: UIView, context: Context) {
-        // Access mapView through coordinator
         guard let mapView = context.coordinator.mapView else { return }
-        // Update map view state as needed
+        
+        // Update selected feature if needed
+        if let feature = selectedFeature {
+            let coords = feature.coordinates
+            let coordinate = CLLocationCoordinate2D(
+                latitude: coords.latitude,
+                longitude: coords.longitude
+            )
+            let camera = CameraOptions(center: coordinate, zoom: 15.0)
+            mapView.camera.ease(to: camera, duration: 0.5)
+        }
     }
     
     func makeCoordinator() -> Coordinator {
@@ -2831,117 +2127,12 @@ struct MapboxMapView: UIViewRepresentable {
     
     class Coordinator: NSObject {
         var parent: MapboxMapView
-        var mapView: MapView?
+        var mapView: MapboxMaps.MapView?
         
         init(_ parent: MapboxMapView) {
             self.parent = parent
         }
     }
-} 
-
-### File: App/SkiTrails/Views/NavigationSetupView.swift
-import SwiftUI
-import CoreLocation
-import SkiTrailsCore
-
-struct NavigationSetupView: View {
-    @ObservedObject var viewModel: NavigationViewModel
-    @EnvironmentObject private var appState: AppState
-    @State private var selectedDifficulty: SkiDifficulty = .intermediate
-    @State private var avoidCrowds = false
-    @State private var preferLessStrenuous = false
-    @State private var maxWaitTime: TimeInterval = 900 // 15 minutes
-    
-    var body: some View {
-        if viewModel.isNavigating {
-            ActiveNavigationView(viewModel: viewModel)
-        } else {
-            setupView
-        }
-    }
-    
-    private var setupView: some View {
-        Form {
-            Section("Difficulty") {
-                Picker("Maximum Difficulty", selection: $selectedDifficulty) {
-                    ForEach(SkiDifficulty.allCases, id: \.self) { difficulty in
-                        Text(difficulty.rawValue.capitalized)
-                            .tag(difficulty)
-                    }
-                }
-            }
-            
-            Section("Preferences") {
-                Toggle("Avoid Crowded Runs", isOn: $avoidCrowds)
-                Toggle("Prefer Less Strenuous Routes", isOn: $preferLessStrenuous)
-                
-                VStack(alignment: .leading) {
-                    Text("Maximum Lift Wait Time")
-                    Slider(
-                        value: $maxWaitTime,
-                        in: 300...1800, // 5-30 minutes
-                        step: 300
-                    ) {
-                        Text("Max Wait Time")
-                    } minimumValueLabel: {
-                        Text("5m")
-                    } maximumValueLabel: {
-                        Text("30m")
-                    }
-                    Text("\(Int(maxWaitTime/60)) minutes")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            
-            Section {
-                Button(action: startNavigation) {
-                    if viewModel.isCalculating {
-                        ProgressView()
-                            .progressViewStyle(.circular)
-                    } else {
-                        Text("Start Navigation")
-                    }
-                }
-                .disabled(viewModel.isCalculating)
-            }
-        }
-        .navigationTitle("Navigation Setup")
-        .alert("Navigation Error", isPresented: .constant(viewModel.error != nil)) {
-            Button("OK", role: .cancel) {}
-        } message: {
-            if let error = viewModel.error {
-                Text(error.localizedDescription)
-            }
-        }
-    }
-    
-    private func startNavigation() {
-        Task {
-            guard let start = appState.currentLocation?.coordinate,
-                  let end = appState.selectedDestination?.coordinate else {
-                return
-            }
-            
-            let preferences = RoutePreferences(
-                avoidCrowds: avoidCrowds,
-                preferLessStrenuous: preferLessStrenuous,
-                maxWaitTime: maxWaitTime
-            )
-            
-            await viewModel.startNavigation(
-                from: start,
-                to: end,
-                difficulty: selectedDifficulty,
-                preferences: preferences
-            )
-        }
-    }
-}
-
-#Preview {
-    NavigationSetupView(viewModel: NavigationViewModel())
-        .environmentObject(AppState())
 } 
 
 ### File: App/SkiTrails/Views/RouteDetailView.swift
@@ -2957,27 +2148,33 @@ struct RouteDetailView: View {
         List {
             // Route Summary
             Section {
+                Label("Route Details", systemImage: "map")
+                    .font(.headline)
                 VStack(alignment: .leading, spacing: 8) {
                     HStack {
-                        Label("\(Int(route.totalDistance))m", systemName: "ruler")
+                        Label("\(Int(route.totalDistance))m", systemImage: "ruler")
                         Spacer()
-                        Label(formatDuration(route.estimatedTime), systemName: "clock")
+                        Label(formatDuration(route.estimatedTime), systemImage: "clock")
                     }
                     
                     HStack {
-                        Label("Difficulty", systemName: "figure.skiing.downhill")
+                        Label("Difficulty", systemImage: "figure.skiing.downhill")
                         Spacer()
                         DifficultyIndicator(difficulty: route.difficulty)
                     }
                 }
+            } header: {
+                Text("Summary")
             }
             
             // Route Segments
-            Section("Route Details") {
+            Section {
                 ForEach(route.segments.indices, id: \.self) { index in
                     let segment = route.segments[index]
                     RouteSegmentRow(segment: segment, index: index)
                 }
+            } header: {
+                Text("Route Details")
             }
             
             // Actions
@@ -2985,15 +2182,17 @@ struct RouteDetailView: View {
                 Button(action: {
                     startNavigation()
                 }) {
-                    Label("Start Navigation", systemName: "location.fill")
+                    Label("Start Navigation", systemImage: "location.fill")
                 }
                 .foregroundColor(.blue)
                 
                 Button(action: {
                     shareRoute()
                 }) {
-                    Label("Share Route", systemName: "square.and.arrow.up")
+                    Label("Share Route", systemImage: "square.and.arrow.up")
                 }
+            } header: {
+                Text("Actions")
             }
         }
         .navigationTitle("Route Details")
@@ -3081,20 +2280,6 @@ struct RouteSegmentRow: View {
     }
 }
 
-struct DifficultyIndicator: View {
-    let difficulty: SkiDifficulty
-    
-    var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(difficulty.color)
-                .frame(width: 12, height: 12)
-            Text(difficulty.rawValue)
-                .font(.subheadline)
-        }
-    }
-}
-
 #if DEBUG
 struct RouteDetailView_Previews: PreviewProvider {
     static var previews: some View {
@@ -3109,19 +2294,19 @@ struct RouteDetailView_Previews: PreviewProvider {
 // MARK: - Preview Helpers
 extension Route {
     static var preview: Route {
-        let location1 = Location(latitude: 0, longitude: 0, elevation: 0)
-        let location2 = Location(latitude: 1, longitude: 1, elevation: 100)
-        let location3 = Location(latitude: 2, longitude: 2, elevation: 0)
+        let location1 = Route.Segment.Location(latitude: 0, longitude: 0, altitude: 0)
+        let location2 = Route.Segment.Location(latitude: 1, longitude: 1, altitude: 100)
+        let location3 = Route.Segment.Location(latitude: 2, longitude: 2, altitude: 0)
         
         return Route(
             segments: [
                 Segment(
                     type: .lift(Lift(
-                        id: "1",
+                        id: EntityID(UUID()),
                         name: "Express Lift",
                         status: .open,
-                        latitude: location1.latitude,
-                        longitude: location1.longitude,
+                        startLocation: Location(latitude: location1.latitude, longitude: location1.longitude, altitude: location1.altitude),
+                        endLocation: Location(latitude: location2.latitude, longitude: location2.longitude, altitude: location2.altitude),
                         capacity: 4,
                         waitTime: 5
                     )),
@@ -3133,18 +2318,14 @@ extension Route {
                 ),
                 Segment(
                     type: .run(Run(
-                        id: "2",
+                        id: EntityID(UUID()),
                         name: "Blue Run",
                         difficulty: .intermediate,
                         status: .open,
+                        startLocation: Location(latitude: location2.latitude, longitude: location2.longitude, altitude: location2.altitude),
+                        endLocation: Location(latitude: location3.latitude, longitude: location3.longitude, altitude: location3.altitude),
                         length: 800,
-                        verticalDrop: 200,
-                        latitude: location2.latitude,
-                        longitude: location2.longitude,
-                        topLatitude: location2.latitude,
-                        topLongitude: location2.longitude,
-                        bottomLatitude: location3.latitude,
-                        bottomLongitude: location3.longitude
+                        verticalDrop: 200
                     )),
                     path: [
                         location2,
@@ -3160,173 +2341,524 @@ extension Route {
     }
 } 
 
+
 ### File: App/SkiTrails/Views/RouteOverlayView.swift
 import SwiftUI
 import MapboxMaps
 import SkiTrailsCore
+import Turf
 
-struct RouteOverlayView: View {
+struct RouteOverlayView: UIViewRepresentable {
     let route: Route
-    @State private var mapView: MapView?
     
-    var body: some View {
-        MapViewRepresentable(route: route) { view in
-            mapView = view
-        }
-        .onAppear {
-            addRouteLayer()
-        }
-        .onChange(of: route) { _ in
-            addRouteLayer()
-        }
-    }
-    
-    private func addRouteLayer() {
-        guard let mapView = mapView else { return }
-        
-        // Convert route segments to GeoJSON
-        var features: [Feature] = []
-        
-        for segment in route.segments {
-            let coordinates = segment.path.map {
-                CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-            }
-            
-            var feature = Feature(geometry: .lineString(LineString(coordinates)))
-            
-            // Add properties based on segment type
-            switch segment.type {
-            case .run(let run):
-                feature.properties = [
-                    "type": .string("run"),
-                    "difficulty": .string(run.difficulty.rawValue),
-                    "name": .string(run.name)
-                ]
-            case .lift(let lift):
-                feature.properties = [
-                    "type": .string("lift"),
-                    "name": .string(lift.name)
-                ]
-            case .connection:
-                feature.properties = [
-                    "type": .string("connection")
-                ]
-            }
-            
-            features.append(feature)
-        }
-        
-        let source = GeoJSONSource(features: features)
-        
-        // Add source to map
-        do {
-            try mapView.mapboxMap.style.addSource(source, id: "route-source")
-            
-            // Add layer for runs
-            try mapView.mapboxMap.style.addLayer(
-                LineLayer(
-                    id: "route-runs",
-                    source: "route-source"
-                ) { layer in
-                    layer.filter = Exp(.eq) {
-                        "$type"
-                        "LineString"
-                        Exp(.eq) {
-                            Exp(.get) { "type" }
-                            "run"
-                        }
-                    }
-                    layer.lineColor = .constant(.init(UIColor.systemBlue))
-                    layer.lineWidth = .constant(4)
-                    layer.lineCap = .constant(.round)
-                    layer.lineJoin = .constant(.round)
-                }
-            )
-            
-            // Add layer for lifts
-            try mapView.mapboxMap.style.addLayer(
-                LineLayer(
-                    id: "route-lifts",
-                    source: "route-source"
-                ) { layer in
-                    layer.filter = Exp(.eq) {
-                        "$type"
-                        "LineString"
-                        Exp(.eq) {
-                            Exp(.get) { "type" }
-                            "lift"
-                        }
-                    }
-                    layer.lineColor = .constant(.init(UIColor.systemRed))
-                    layer.lineWidth = .constant(4)
-                    layer.lineDasharray = .constant([2, 1])
-                }
-            )
-            
-            // Add layer for connections
-            try mapView.mapboxMap.style.addLayer(
-                LineLayer(
-                    id: "route-connections",
-                    source: "route-source"
-                ) { layer in
-                    layer.filter = Exp(.eq) {
-                        "$type"
-                        "LineString"
-                        Exp(.eq) {
-                            Exp(.get) { "type" }
-                            "connection"
-                        }
-                    }
-                    layer.lineColor = .constant(.init(UIColor.systemGray))
-                    layer.lineWidth = .constant(2)
-                    layer.lineDasharray = .constant([4, 2])
-                }
-            )
-            
-            // Fit map to route bounds
-            let coordinates = route.segments.flatMap { $0.path }.map {
-                CLLocationCoordinate2D(latitude: $0.latitude, longitude: $0.longitude)
-            }
-            let bounds = coordinates.reduce(CoordinateBounds(southwest: coordinates[0], northeast: coordinates[0])) {
-                $0.extend(with: $1)
-            }
-            mapView.camera.fit(to: bounds, padding: UIEdgeInsets(top: 50, left: 50, bottom: 50, right: 50))
-            
-        } catch {
-            print("Failed to add route layers: \(error.localizedDescription)")
-        }
-    }
-}
-
-private struct MapViewRepresentable: UIViewRepresentable {
-    let route: Route
-    let onViewCreated: (MapView) -> Void
-    
-    func makeUIView(context: Context) -> MapView {
-        let accessToken = try! MapConfig.getMapboxAccessToken()
-        let resourceOptions = ResourceOptions(accessToken: accessToken)
+    func makeUIView(context: Context) -> MapboxMaps.MapView {
+        let resourceOptions = ResourceOptions(accessToken: try! CoreConfig.getValue(for: "MAPBOX_ACCESS_TOKEN"))
         let mapInitOptions = MapInitOptions(resourceOptions: resourceOptions)
+        let mapView = MapboxMaps.MapView(frame: .zero, mapInitOptions: mapInitOptions)
         
-        let mapView = MapView(frame: .zero, mapInitOptions: mapInitOptions)
-        mapView.mapboxMap.loadStyleURI(.outdoors)
+        mapView.mapboxMap.onNext(event: .styleLoaded) { _ in
+            addRouteOverlay(to: mapView)
+        }
         
-        onViewCreated(mapView)
         return mapView
     }
     
-    func updateUIView(_ mapView: MapView, context: Context) {
-        // Update view if needed
+    func updateUIView(_ mapView: MapboxMaps.MapView, context: Context) {
+        addRouteOverlay(to: mapView)
+    }
+    
+    private func addRouteOverlay(to mapView: MapboxMaps.MapView) {
+        let coordinates = route.segments.flatMap { segment -> [CLLocationCoordinate2D] in
+            return segment.path.map { location in
+                CLLocationCoordinate2D(
+                    latitude: location.latitude,
+                    longitude: location.longitude
+                )
+            }
+        }
+        
+        do {
+            var source = GeoJSONSource()
+            let geometry = MapboxMaps.LineString(coordinates)
+            let feature = MapboxMaps.Feature(geometry: geometry)
+            source.data = .feature(feature)
+            try mapView.mapboxMap.style.addSource(source, id: "route")
+            
+            var layer = LineLayer(id: "route-layer")
+            layer.source = "route"
+            layer.lineColor = .constant(.init(UIColor.systemBlue))
+            layer.lineWidth = .constant(4)
+            try mapView.mapboxMap.style.addLayer(layer)
+            
+            let camera = CameraOptions(center: coordinates[0], zoom: 15)
+            mapView.camera.fly(to: camera, duration: 1.0)
+        } catch {
+            print("Error adding route overlay: \(error)")
+        }
     }
 }
 
 #Preview {
-    RouteOverlayView(route: Route(
-        segments: [],
-        totalDistance: 0,
-        estimatedTime: 0,
-        difficulty: .beginner
-    ))
+    RouteOverlayView(
+        route: Route(
+            segments: [
+                Route.Segment(
+                    type: .run(Run(
+                        id: EntityID(UUID()),
+                        name: "Blue Heaven",
+                        difficulty: .intermediate,
+                        status: .open,
+                        startLocation: Location(latitude: 40.5853, longitude: -111.6564, altitude: 2800),
+                        endLocation: Location(latitude: 40.5845, longitude: -111.6558, altitude: 2600),
+                        length: 500,
+                        verticalDrop: 200
+                    )),
+                    path: [
+                        Route.Segment.Location(latitude: 40.5853, longitude: -111.6564, altitude: 2800),
+                        Route.Segment.Location(latitude: 40.5845, longitude: -111.6558, altitude: 2600)
+                    ],
+                    distance: 500
+                )
+            ],
+            totalDistance: 500,
+            estimatedTime: 300,
+            difficulty: .intermediate
+        )
+    )
 } 
+
+### File: App/SkiTrails/Views/RouteSelectionView.swift
+import SwiftUI
+import SkiTrailsCore
+
+struct RouteSelectionView: View {
+    let resort: Resort
+    @ObservedObject var viewModel: NavigationViewModel
+    @Environment(\.dismiss) private var dismiss
+    
+    var body: some View {
+        NavigationView {
+            Form {
+                Section("Start Point") {
+                    Picker("Select Start Point", selection: $viewModel.startPoint) {
+                        Text("Current Location").tag(nil as Run?)
+                        ForEach(resort.runs) { run in
+                            Text(run.name).tag(run as Run?)
+                        }
+                    }
+                }
+                
+                Section("End Point") {
+                    Picker("Select End Point", selection: $viewModel.endPoint) {
+                        ForEach(resort.runs) { run in
+                            Text(run.name).tag(run as Run?)
+                        }
+                    }
+                }
+                
+                Section {
+                    Button("Start Navigation") {
+                        Task {
+                            await viewModel.startNavigation()
+                            dismiss()
+                        }
+                    }
+                    .disabled(!viewModel.canStartNavigation)
+                }
+            }
+            .navigationTitle("Select Route")
+            .navigationBarTitleDisplayMode(.inline)
+            .toolbar {
+                ToolbarItem(placement: .cancellationAction) {
+                    Button("Cancel") {
+                        dismiss()
+                    }
+                }
+            }
+        }
+    }
+}
+
+#Preview {
+    let resort = Resort.preview
+    RouteSelectionView(
+        resort: resort,
+        viewModel: NavigationViewModel(appState: AppState.preview)
+    )
+    .environmentObject(AppState.preview)
+} 
+
+
+### File: App/SkiTrails/Views/Views.swift
+import SwiftUI
+import MapKit
+import SkiTrailsCore
+
+// MARK: - Common Views
+struct DifficultyIndicator: View {
+    let difficulty: Run.Difficulty
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(color)
+                .frame(width: 8, height: 8)
+            
+            Text(difficulty.rawValue.capitalized)
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+    
+    private var color: Color {
+        switch difficulty {
+        case .beginner:
+            return .green
+        case .intermediate:
+            return .blue
+        case .advanced:
+            return .black
+        case .expert:
+            return .red
+        }
+    }
+}
+
+struct StatusBadge: View {
+    let status: String
+    let color: Color
+    
+    init(liftStatus: Lift.Status) {
+        self.status = liftStatus.rawValue.capitalized
+        switch liftStatus {
+        case .open:
+            self.color = .green
+        case .closed:
+            self.color = .red
+        case .onHold:
+            self.color = .orange
+        case .maintenance:
+            self.color = .purple
+        }
+    }
+    
+    init(runStatus: Run.Status) {
+        self.status = runStatus.rawValue.capitalized
+        switch runStatus {
+        case .open:
+            self.color = .green
+        case .closed:
+            self.color = .red
+        case .grooming:
+            self.color = .purple
+        }
+    }
+    
+    var body: some View {
+        Text(status)
+            .font(.caption)
+            .padding(.horizontal, 8)
+            .padding(.vertical, 4)
+            .background(color.opacity(0.2))
+            .foregroundColor(color)
+            .clipShape(Capsule())
+    }
+}
+
+struct LiftStatusRow: View {
+    let lift: Lift
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(lift.name)
+                    .font(.headline)
+                
+                if let waitTime = lift.waitTime {
+                    Text("\(Int(waitTime / 60)) min wait")
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
+            
+            StatusBadge(liftStatus: lift.status)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+struct RunStatusRow: View {
+    let run: Run
+    
+    var body: some View {
+        HStack {
+            VStack(alignment: .leading) {
+                Text(run.name)
+                    .font(.headline)
+                
+                DifficultyIndicator(difficulty: run.difficulty)
+            }
+            
+            Spacer()
+            
+            StatusBadge(runStatus: run.status)
+        }
+        .padding(.vertical, 4)
+    }
+}
+
+// MARK: - Content View
+struct ContentView: View {
+    @StateObject private var appState = AppState()
+    @State private var selectedTab = 0
+    
+    var body: some View {
+        TabView(selection: $selectedTab) {
+            ResortListView()
+                .tabItem {
+                    Label("Resorts", systemImage: "list.bullet")
+                }
+                .tag(0)
+            
+            SkiMapView()
+                .tabItem {
+                    Label("Map", systemImage: "map")
+                }
+                .tag(1)
+            
+            TrailStatusView()
+                .tabItem {
+                    Label("Status", systemImage: "info.circle")
+                }
+                .tag(2)
+            
+            NavigationSetupView(viewModel: NavigationViewModel(appState: appState))
+                .tabItem {
+                    Label("Navigate", systemImage: "location.fill")
+                }
+                .tag(3)
+            
+            ARResortView()
+                .tabItem {
+                    Label("AR View", systemImage: "camera.fill")
+                }
+                .tag(4)
+        }
+        .environmentObject(appState)
+    }
+}
+
+// MARK: - Resort List View
+struct ResortListView: View {
+    @StateObject private var viewModel = ResortViewModel()
+    @EnvironmentObject private var appState: AppState
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if viewModel.isLoading {
+                    ProgressView()
+                } else {
+                    List(appState.resorts) { resort in
+                        ResortRowView(resort: resort)
+                            .onTapGesture {
+                                viewModel.selectResort(resort)
+                            }
+                    }
+                }
+            }
+            .navigationTitle("Ski Resorts")
+            .task {
+                await appState.loadResorts()
+            }
+            .onAppear {
+                viewModel.onAppear()
+            }
+            .onDisappear {
+                viewModel.onDisappear()
+            }
+        }
+    }
+}
+
+// MARK: - Trail Status View
+struct TrailStatusView: View {
+    @EnvironmentObject private var appState: AppState
+    @StateObject private var viewModel = ResortViewModel()
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if viewModel.isLoading {
+                    ProgressView()
+                } else if let resort = appState.selectedResort {
+                    List {
+                        Section("Lifts") {
+                            ForEach(resort.lifts) { lift in
+                                LiftStatusRow(lift: lift)
+                            }
+                        }
+                        
+                        Section("Runs") {
+                            ForEach(resort.runs) { run in
+                                RunStatusRow(run: run)
+                            }
+                        }
+                    }
+                } else {
+                    ContentUnavailableView(
+                        "No Resort Selected",
+                        systemImage: "mountain.2",
+                        description: Text("Select a resort to view trail status")
+                    )
+                }
+            }
+            .navigationTitle("Trail Status")
+            .refreshable {
+                if appState.selectedResort != nil {
+                    await viewModel.refreshResortStatus()
+                }
+            }
+        }
+    }
+}
+
+// MARK: - Navigation Setup View
+struct NavigationSetupView: View {
+    @StateObject private var viewModel: NavigationViewModel
+    @EnvironmentObject private var appState: AppState
+    
+    init(viewModel: NavigationViewModel? = nil) {
+        if let viewModel = viewModel {
+            _viewModel = StateObject(wrappedValue: viewModel)
+        } else {
+            _viewModel = StateObject(wrappedValue: NavigationViewModel(appState: AppState()))
+        }
+    }
+    
+    var body: some View {
+        let _ = viewModel.updateAppState(appState)
+        
+        NavigationView {
+            Form {
+                Section("Skill Level") {
+                    Picker("Your Skill Level", selection: $viewModel.skillLevel) {
+                        Text("Beginner").tag(Run.Difficulty.beginner)
+                        Text("Intermediate").tag(Run.Difficulty.intermediate)
+                        Text("Advanced").tag(Run.Difficulty.advanced)
+                        Text("Expert").tag(Run.Difficulty.expert)
+                    }
+                }
+                
+                Section("Preferences") {
+                    Toggle("Avoid Crowded Runs", isOn: $viewModel.avoidCrowds)
+                    Toggle("Prefer Less Strenuous Routes", isOn: $viewModel.preferLessStrenuous)
+                }
+                
+                if appState.selectedResort != nil {
+                    Section("Start Navigation") {
+                        Button("Choose Start & End Points") {
+                            viewModel.showRouteSelection = true
+                        }
+                    }
+                } else {
+                    Section {
+                        Text("Select a resort to start navigation")
+                            .foregroundColor(.secondary)
+                    }
+                }
+            }
+            .navigationTitle("Navigation Setup")
+            .sheet(isPresented: $viewModel.showRouteSelection) {
+                if let resort = appState.selectedResort {
+                    RouteSelectionView(resort: resort, viewModel: viewModel)
+                }
+            }
+        }
+    }
+}
+
+// MARK: - AR Resort View
+struct ARResortView: View {
+    @EnvironmentObject private var appState: AppState
+    
+    var body: some View {
+        NavigationView {
+            Group {
+                if let resort = appState.selectedResort {
+                    ContentUnavailableView(
+                        "AR View Coming Soon",
+                        systemImage: "camera.fill",
+                        description: Text("AR features for \(resort.name) will be available in a future update.")
+                    )
+                } else {
+                    ContentUnavailableView(
+                        "No Resort Selected",
+                        systemImage: "mountain.2",
+                        description: Text("Select a resort to view AR features")
+                    )
+                }
+            }
+            .navigationTitle("AR View")
+        }
+    }
+}
+
+// MARK: - Supporting Views
+struct ResortRowView: View {
+    let resort: Resort
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text(resort.name)
+                .font(.headline)
+            
+            HStack {
+                StatusIndicator(
+                    count: resort.lifts.filter { $0.status == .open }.count,
+                    total: resort.lifts.count,
+                    type: "Lifts"
+                )
+                
+                Spacer()
+                
+                StatusIndicator(
+                    count: resort.runs.filter { $0.status == .open }.count,
+                    total: resort.runs.count,
+                    type: "Runs"
+                )
+            }
+            .padding(.top, 4)
+        }
+        .padding(.vertical, 8)
+    }
+}
+
+struct StatusIndicator: View {
+    let count: Int
+    let total: Int
+    let type: String
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            Circle()
+                .fill(count > 0 ? .green : .red)
+                .frame(width: 8, height: 8)
+            
+            Text("\(count)/\(total) \(type)")
+                .font(.caption)
+                .foregroundColor(.secondary)
+        }
+    }
+}
+
+#Preview {
+    ContentView()
+        .environmentObject(AppState())
+} 
+
 
 ### File: App/SkiTrails/Services/APIClient.swift
 import Foundation
@@ -3384,7 +2916,12 @@ actor APIClient {
         self.encoder.dateEncodingStrategy = .iso8601
     }
     
-    func fetchWeather(for resort: Resort) async throws -> WeatherInfo {
+    func fetchResortList() async throws -> [Resort] {
+        let url = try buildURL(path: "/resorts")
+        return try await fetch(url)
+    }
+    
+    func fetchWeather(for resort: Resort) async throws -> Weather {
         let url = try buildURL(path: "/weather/\(resort.id)")
         return try await fetch(url)
     }
@@ -3408,27 +2945,33 @@ actor APIClient {
     }
     
     private func fetch<T: Decodable>(_ request: URLRequest) async throws -> T {
-        let (data, response) = try await session.data(for: request)
-        
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw APIError.invalidResponse
-        }
-        
-        switch httpResponse.statusCode {
-        case 200...299:
-            do {
-                return try decoder.decode(T.self, from: data)
-            } catch {
-                throw APIError.decodingError(error)
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
             }
-        case 401:
-            throw APIError.unauthorized
-        case 400...499:
-            throw APIError.invalidResponse
-        case 500...599:
-            throw APIError.serverError(httpResponse.statusCode)
-        default:
-            throw APIError.unknown
+            
+            switch httpResponse.statusCode {
+            case 200...299:
+                do {
+                    return try decoder.decode(T.self, from: data)
+                } catch {
+                    throw APIError.decodingError(error)
+                }
+            case 401:
+                throw APIError.unauthorized
+            case 400...499:
+                throw APIError.invalidResponse
+            case 500...599:
+                throw APIError.serverError(httpResponse.statusCode)
+            default:
+                throw APIError.unknown
+            }
+        } catch is CancellationError {
+            throw APIError.networkError(NSError(domain: "APIClient", code: -999, userInfo: [NSLocalizedDescriptionKey: "Request was cancelled"]))
+        } catch {
+            throw APIError.networkError(error)
         }
     }
     
@@ -3442,14 +2985,6 @@ actor APIClient {
         
         return try await fetch(request)
     }
-}
-
-struct WeatherInfo: Codable {
-    let temperature: Double
-    let conditions: String
-    let snowDepth: Double
-    let windSpeed: Double
-    let visibility: Double
 } 
 
 ### File: App/SkiTrails/Services/ErrorHandler.swift
@@ -3467,16 +3002,18 @@ actor ErrorHandler {
     // MARK: - Error Handling
     
     func handle(_ error: Error, context: ErrorContext? = nil) {
-        // Log to Sentry
-        let event = Event(level: .error)
-        event.message = error.localizedDescription
-        
-        if let context = context {
-            event.extra = context.contextData
-            event.tags = ["context": context.name]
+        // Only send to Sentry in non-development environments
+        if !EnvConfig.isDevelopment {
+            let event = Event(level: .error)
+            event.message = SentryMessage(formatted: error.localizedDescription)
+            
+            if let context = context {
+                event.extra = context.contextData
+                event.tags = ["context": context.name]
+            }
+            
+            SentrySDK.capture(event: event)
         }
-        
-        SentrySDK.capture(event: event)
         
         // Log locally in debug mode
         #if DEBUG
@@ -3642,7 +3179,20 @@ extension LocationManager: CLLocationManagerDelegate {
     }
     
     func locationManager(_ manager: CLLocationManager, didUpdateLocations locations: [CLLocation]) {
-        currentLocation = locations.last
+        guard let location = locations.last else { return }
+        
+        // Filter out old or inaccurate locations
+        let locationAge = -location.timestamp.timeIntervalSinceNow
+        guard locationAge < 5, // Less than 5 seconds old
+              location.horizontalAccuracy >= 0,
+              location.horizontalAccuracy < 50 // Accurate within 50 meters
+        else {
+            return
+        }
+        
+        DispatchQueue.main.async {
+            self.currentLocation = location
+        }
     }
     
     func locationManager(_ manager: CLLocationManager, didFailWithError error: Error) {
@@ -3736,6 +3286,7 @@ enum ResortConfig {
 
 ### File: Tests/SkiTrailsTests/SkiTrailsTests.swift
 import XCTest
+import CoreLocation
 @testable import SkiTrailsCore
 
 final class SkiTrailsTests: XCTestCase {
@@ -3764,8 +3315,8 @@ final class SkiTrailsTests: XCTestCase {
     }
     
     func testDifficultyFiltering() async throws {
-        let start = CLLocationCoordinate2D(latitude: 39.6403, longitude: -106.3742)
-        let end = CLLocationCoordinate2D(latitude: 39.6500, longitude: -106.3800)
+        let start = CLLocationCoordinate2D(latitude: 39.6450, longitude: -106.3750)
+        let end = CLLocationCoordinate2D(latitude: 39.6403, longitude: -106.3742)
         
         let beginnerRoute = try await routingEngine.findRoute(
             from: start,
@@ -3897,22 +3448,6 @@ struct ContentView: View {
         .environmentObject(AppState())
 }
 
-### File: Sources/SkiTrails/SkiTrailsApp.swift
-import SwiftUI
-import SkiTrailsCore
-
-@main
-struct SkiTrailsApp: App {
-    @StateObject private var appState = AppState()
-    
-    var body: some Scene {
-        WindowGroup {
-            ContentView()
-                .environmentObject(appState)
-        }
-    }
-} 
-
 ### File: Sources/SkiTrails/Images.xcassets/Contents.json
 {
   "info" : {
@@ -4037,54 +3572,21 @@ import SwiftUI
 // MARK: - Core Configuration
 public enum CoreConfig {
     public enum Error: Swift.Error, LocalizedError {
-        case fileNotFound(String)
-        case invalidFormat
         case missingKey(String)
+        case invalidURLFormat(String)
         
         public var errorDescription: String? {
             switch self {
-            case .fileNotFound(let path):
-                return "Environment file not found at: \(path)"
-            case .invalidFormat:
-                return "Invalid environment file format"
             case .missingKey(let key):
                 return "Missing required environment variable: \(key)"
+            case .invalidURLFormat(let url):
+                return "Invalid URL format: \(url)"
             }
         }
-    }
-    
-    private static var envVariables: [String: String]?
-    
-    private static func loadEnvironmentVariables() throws -> [String: String] {
-        if let existing = envVariables {
-            return existing
-        }
-        
-        guard let path = Bundle.main.path(forResource: ".env", ofType: nil) else {
-            throw Error.fileNotFound(".env")
-        }
-        
-        let content = try String(contentsOfFile: path, encoding: .utf8)
-        var variables: [String: String] = [:]
-        
-        content.components(separatedBy: .newlines).forEach { line in
-            let parts = line.split(separator: "=", maxSplits: 1)
-            if parts.count == 2 {
-                let key = String(parts[0]).trimmingCharacters(in: .whitespaces)
-                let value = String(parts[1]).trimmingCharacters(in: .whitespaces)
-                if !key.hasPrefix("#") {
-                    variables[key] = value
-                }
-            }
-        }
-        
-        envVariables = variables
-        return variables
     }
     
     public static func getValue(for key: String) throws -> String {
-        let variables = try loadEnvironmentVariables()
-        guard let value = variables[key] else {
+        guard let value = ProcessInfo.processInfo.environment[key], !value.isEmpty else {
             throw Error.missingKey(key)
         }
         return value
@@ -4118,7 +3620,7 @@ public enum CoreConfig {
     public static func getAPIBaseURL() throws -> URL {
         let urlString = try getValue(for: "API_BASE_URL")
         guard let url = URL(string: urlString) else {
-            throw Error.invalidFormat
+            throw Error.invalidURLFormat(urlString)
         }
         return url
     }
@@ -4178,16 +3680,23 @@ public enum MapConfig {
 ### File: Sources/SkiTrailsCore/Models/AppState.swift
 import Foundation
 import SwiftUI
+import CoreLocation
 
 public class AppState: ObservableObject {
     @Published public var isLoading: Bool = false
     @Published public var selectedTrail: String? = nil
     @Published public var navigationActive: Bool = false
     @Published public var error: Error?
+    @Published public private(set) var resorts: [Resort] = []
+    @Published public private(set) var selectedResort: Resort?
+    @Published public var selectedDestination: Location?
+    @Published public var currentLocation: CLLocation?
     
+    private let apiClient: APIClient
     public let configuration: Configuration?
     
     public init() {
+        self.apiClient = .shared
         do {
             self.configuration = try Configuration.default()
         } catch {
@@ -4197,7 +3706,26 @@ public class AppState: ObservableObject {
     }
     
     public init(configuration: Configuration) {
+        self.apiClient = .shared
         self.configuration = configuration
+    }
+    
+    @MainActor
+    public func loadResorts() async {
+        isLoading = true
+        do {
+            let resortList = try await apiClient.fetchResortList()
+            self.resorts = resortList
+            isLoading = false
+        } catch {
+            self.error = error
+            isLoading = false
+        }
+    }
+    
+    @MainActor
+    public func selectResort(_ resort: Resort) {
+        selectedResort = resort
     }
 } 
 
@@ -4382,24 +3910,90 @@ public enum MapFeature {
 ### File: Sources/SkiTrailsCore/Models/Resort.swift
 import Foundation
 
-public struct Resort: Identifiable {
-    public let id: UUID
+public struct EntityID: Codable, Hashable, Identifiable {
+    public let rawValue: String
+    public var id: String { rawValue }
+    
+    public init(_ uuid: UUID) {
+        self.rawValue = uuid.uuidString
+    }
+    
+    public init(_ string: String) {
+        self.rawValue = string
+    }
+    
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.singleValueContainer()
+        let value = try container.decode(String.self)
+        self.rawValue = value
+    }
+    
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.singleValueContainer()
+        try container.encode(rawValue)
+    }
+}
+
+public struct Resort: Identifiable, Codable {
+    public let id: EntityID
     public let name: String
     public let lifts: [Lift]
     public let runs: [Run]
-    public var weather: Weather?
     
-    public init(id: UUID = UUID(), name: String, lifts: [Lift], runs: [Run], weather: Weather? = nil) {
+    public init(id: EntityID, name: String, lifts: [Lift], runs: [Run]) {
         self.id = id
         self.name = name
         self.lifts = lifts
         self.runs = runs
-        self.weather = weather
+    }
+    
+    public static var preview: Resort {
+        let lifts = [
+            Lift(
+                id: EntityID(UUID()),
+                name: "Express Lift",
+                status: .open,
+                startLocation: Location(latitude: 39.6450, longitude: -106.3750, altitude: 3000),
+                endLocation: Location(latitude: 39.6500, longitude: -106.3800, altitude: 3500),
+                capacity: 6,
+                waitTime: 600
+            )
+        ]
+        
+        let runs = [
+            Run(
+                id: EntityID(UUID()),
+                name: "Easy Street",
+                difficulty: .beginner,
+                status: .open,
+                startLocation: Location(latitude: 39.6450, longitude: -106.3750, altitude: 3000),
+                endLocation: Location(latitude: 39.6403, longitude: -106.3742, altitude: 2500),
+                length: 1000,
+                verticalDrop: 500
+            ),
+            Run(
+                id: EntityID(UUID()),
+                name: "Blue Heaven",
+                difficulty: .intermediate,
+                status: .open,
+                startLocation: Location(latitude: 39.6500, longitude: -106.3800, altitude: 3500),
+                endLocation: Location(latitude: 39.6450, longitude: -106.3750, altitude: 3000),
+                length: 1500,
+                verticalDrop: 500
+            )
+        ]
+        
+        return Resort(
+            id: EntityID(UUID()),
+            name: "Test Resort",
+            lifts: lifts,
+            runs: runs
+        )
     }
 }
 
-public struct Lift: Identifiable {
-    public let id: UUID
+public struct Lift: Identifiable, Codable {
+    public let id: EntityID
     public let name: String
     public let status: Status
     public let startLocation: Location
@@ -4407,13 +4001,23 @@ public struct Lift: Identifiable {
     public let capacity: Int
     public let waitTime: TimeInterval?
     
-    public enum Status: String {
+    public enum Status: String, Codable {
         case open, closed, onHold, maintenance
+    }
+    
+    public init(id: EntityID, name: String, status: Status, startLocation: Location, endLocation: Location, capacity: Int, waitTime: TimeInterval? = nil) {
+        self.id = id
+        self.name = name
+        self.status = status
+        self.startLocation = startLocation
+        self.endLocation = endLocation
+        self.capacity = capacity
+        self.waitTime = waitTime
     }
 }
 
-public struct Run: Identifiable {
-    public let id: UUID
+public struct Run: Identifiable, Codable, Hashable {
+    public let id: EntityID
     public let name: String
     public let difficulty: Difficulty
     public let status: Status
@@ -4422,16 +4026,53 @@ public struct Run: Identifiable {
     public let length: Double
     public let verticalDrop: Double
     
-    public enum Difficulty: String, CaseIterable {
+    public enum Difficulty: String, Codable, CaseIterable, Comparable {
         case beginner, intermediate, advanced, expert
+        
+        public static func < (lhs: Difficulty, rhs: Difficulty) -> Bool {
+            let order: [Difficulty] = [.beginner, .intermediate, .advanced, .expert]
+            guard let lhsIndex = order.firstIndex(of: lhs),
+                  let rhsIndex = order.firstIndex(of: rhs) else {
+                return false
+            }
+            return lhsIndex < rhsIndex
+        }
+        
+        public var color: String {
+            switch self {
+            case .beginner: return "green"
+            case .intermediate: return "blue"
+            case .advanced: return "black"
+            case .expert: return "doubleBlack"
+            }
+        }
     }
     
-    public enum Status: String {
+    public enum Status: String, Codable {
         case open, closed, grooming
+    }
+    
+    public init(id: EntityID, name: String, difficulty: Difficulty, status: Status, startLocation: Location, endLocation: Location, length: Double, verticalDrop: Double) {
+        self.id = id
+        self.name = name
+        self.difficulty = difficulty
+        self.status = status
+        self.startLocation = startLocation
+        self.endLocation = endLocation
+        self.length = length
+        self.verticalDrop = verticalDrop
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(id)
+    }
+    
+    public static func == (lhs: Run, rhs: Run) -> Bool {
+        lhs.id == rhs.id
     }
 }
 
-public struct Location: Equatable, Hashable {
+public struct Location: Equatable, Hashable, Codable {
     public let latitude: Double
     public let longitude: Double
     public let altitude: Double
@@ -4443,7 +4084,7 @@ public struct Location: Equatable, Hashable {
     }
 }
 
-public struct Weather {
+public struct Weather: Codable {
     public let temperature: Double
     public let conditions: String
     public let snowDepth: Double
@@ -4508,10 +4149,16 @@ public actor RoutingEngine {
             throw RoutingError.graphNotInitialized
         }
         
-        let startNode = findNearestNode(to: start, in: graph)
-        let endNode = findNearestNode(to: end, in: graph)
+        let startNode = try findNearestNode(to: start, in: graph)
+        let endNode = try findNearestNode(to: end, in: graph)
         
-        let path = try findPath(from: startNode, to: endNode, in: graph, maxDifficulty: difficulty)
+        let path = try findPath(
+            from: startNode,
+            to: endNode,
+            in: graph,
+            maxDifficulty: difficulty,
+            preferences: preferences
+        )
         return try buildRoute(from: path, in: graph)
     }
     
@@ -4522,29 +4169,42 @@ public actor RoutingEngine {
         
         // Add lift nodes
         for lift in resort.lifts {
-            nodes[lift.id.uuidString] = Node(
-                id: lift.id.uuidString,
+            // Add lift base node
+            nodes[lift.id.rawValue] = Node(
+                id: lift.id.rawValue,
                 coordinate: CLLocationCoordinate2D(latitude: lift.startLocation.latitude, longitude: lift.startLocation.longitude),
-                elevation: lift.startLocation.elevation
+                elevation: lift.startLocation.altitude,
+                type: .lift(lift)
+            )
+            
+            // Add lift top node
+            let topNodeId = "\(lift.id.rawValue)_top"
+            nodes[topNodeId] = Node(
+                id: topNodeId,
+                coordinate: CLLocationCoordinate2D(latitude: lift.endLocation.latitude, longitude: lift.endLocation.longitude),
+                elevation: lift.endLocation.altitude,
+                type: .lift(lift)
             )
         }
         
         // Add run nodes
         for run in resort.runs {
             // Add top node for the run
-            let topNodeId = "\(run.id.uuidString)_top"
+            let topNodeId = "\(run.id.rawValue)_top"
             nodes[topNodeId] = Node(
                 id: topNodeId,
                 coordinate: CLLocationCoordinate2D(latitude: run.startLocation.latitude, longitude: run.startLocation.longitude),
-                elevation: run.startLocation.elevation
+                elevation: run.startLocation.altitude,
+                type: .run(run)
             )
             
             // Add bottom node for the run
-            let bottomNodeId = "\(run.id.uuidString)_bottom"
+            let bottomNodeId = "\(run.id.rawValue)_bottom"
             nodes[bottomNodeId] = Node(
                 id: bottomNodeId,
                 coordinate: CLLocationCoordinate2D(latitude: run.endLocation.latitude, longitude: run.endLocation.longitude),
-                elevation: run.endLocation.elevation
+                elevation: run.endLocation.altitude,
+                type: .run(run)
             )
         }
         
@@ -4553,57 +4213,94 @@ public actor RoutingEngine {
     
     private func buildEdges(from resort: Resort) -> [Edge] {
         var edges: [Edge] = []
+        let connectionThreshold: Double = 500 // 500m connection threshold
         
-        // For each lift, connect to nearby run tops (only if both lift and run are open)
+        // Connect lift bases to lift tops
         for lift in resort.lifts {
             if lift.status != .open {
                 continue
             }
             
+            // Connect lift base to lift top
+            edges.append(Edge(
+                from: lift.id.rawValue,
+                to: "\(lift.id.rawValue)_top",
+                type: .lift,
+                distance: lift.endLocation.altitude - lift.startLocation.altitude
+            ))
+        }
+        
+        // Connect lift tops to nearby run tops and other lift bases
+        for lift in resort.lifts {
+            if lift.status != .open {
+                continue
+            }
+            
+            let liftTopLocation = CLLocation(
+                latitude: lift.endLocation.latitude,
+                longitude: lift.endLocation.longitude
+            )
+            
+            // Connect to run tops
             for run in resort.runs {
                 if run.status != .open {
                     continue
                 }
                 
-                // Connect lift to run top if they're close enough
-                let liftLocation = CLLocation(
-                    latitude: lift.startLocation.latitude,
-                    longitude: lift.startLocation.longitude
-                )
                 let runTopLocation = CLLocation(
                     latitude: run.startLocation.latitude,
                     longitude: run.startLocation.longitude
                 )
                 
-                if liftLocation.distance(from: runTopLocation) < 100 { // 100m threshold
+                let distance = liftTopLocation.distance(from: runTopLocation)
+                if distance < connectionThreshold {
                     edges.append(Edge(
-                        from: lift.id.uuidString,
-                        to: "\(run.id.uuidString)_top",
-                        type: .run(difficulty: run.difficulty),
-                        distance: liftLocation.distance(from: runTopLocation)
+                        from: "\(lift.id.rawValue)_top",
+                        to: "\(run.id.rawValue)_top",
+                        type: .connection,
+                        distance: distance
+                    ))
+                }
+            }
+            
+            // Connect to other lift bases
+            for otherLift in resort.lifts {
+                if otherLift.id == lift.id || otherLift.status != .open {
+                    continue
+                }
+                
+                let otherLiftBaseLocation = CLLocation(
+                    latitude: otherLift.startLocation.latitude,
+                    longitude: otherLift.startLocation.longitude
+                )
+                
+                let distance = liftTopLocation.distance(from: otherLiftBaseLocation)
+                if distance < connectionThreshold {
+                    edges.append(Edge(
+                        from: "\(lift.id.rawValue)_top",
+                        to: otherLift.id.rawValue,
+                        type: .connection,
+                        distance: distance
                     ))
                 }
             }
         }
         
-        // For each run, connect its top to its bottom (only if run is open)
+        // Connect run tops to run bottoms
         for run in resort.runs {
             if run.status != .open {
                 continue
             }
             
-            let topNodeId = "\(run.id.uuidString)_top"
-            let bottomNodeId = "\(run.id.uuidString)_bottom"
-            
             edges.append(Edge(
-                from: topNodeId,
-                to: bottomNodeId,
+                from: "\(run.id.rawValue)_top",
+                to: "\(run.id.rawValue)_bottom",
                 type: .run(difficulty: run.difficulty),
                 distance: run.length
             ))
         }
         
-        // For each run's bottom, connect to nearby lift bases (only if both run and lift are open)
+        // Connect run bottoms to lift bases
         for run in resort.runs {
             if run.status != .open {
                 continue
@@ -4624,12 +4321,13 @@ public actor RoutingEngine {
                     longitude: lift.startLocation.longitude
                 )
                 
-                if runBottomLocation.distance(from: liftBaseLocation) < 100 { // 100m threshold
+                let distance = runBottomLocation.distance(from: liftBaseLocation)
+                if distance < connectionThreshold {
                     edges.append(Edge(
-                        from: "\(run.id.uuidString)_bottom",
-                        to: lift.id.uuidString,
-                        type: .lift,
-                        distance: runBottomLocation.distance(from: liftBaseLocation)
+                        from: "\(run.id.rawValue)_bottom",
+                        to: lift.id.rawValue,
+                        type: .connection,
+                        distance: distance
                     ))
                 }
             }
@@ -4638,24 +4336,32 @@ public actor RoutingEngine {
         return edges
     }
     
-    private func findNearestNode(to coordinate: CLLocationCoordinate2D, in graph: ResortGraph) -> Node {
+    private func findNearestNode(to coordinate: CLLocationCoordinate2D, in graph: ResortGraph) throws -> Node {
         let location = CLLocation(latitude: coordinate.latitude, longitude: coordinate.longitude)
         
-        return graph.nodes.values.min { a, b in
+        guard let nearest = graph.nodes.values.min(by: { a, b in
             let aLocation = CLLocation(
                 latitude: a.coordinate.latitude,
                 longitude: a.coordinate.longitude
             )
             let bLocation = CLLocation(
-                latitude: b.coordinate.latitude,
-                longitude: b.coordinate.longitude
-            )
+                latitude: b.coordinate.latitude, longitude)
             
             return location.distance(from: aLocation) < location.distance(from: bLocation)
-        }!
+        }) else {
+            throw RoutingError.noRouteFound
+        }
+        
+        return nearest
     }
     
-    private func findPath(from start: Node, to end: Node, in graph: ResortGraph, maxDifficulty: SkiDifficulty) throws -> [String] {
+    private func findPath(
+        from start: Node,
+        to end: Node,
+        in graph: ResortGraph,
+        maxDifficulty: SkiDifficulty,
+        preferences: RoutePreferences
+    ) throws -> [String] {
         var openSet = Set<String>([start.id])
         var closedSet = Set<String>()
         
@@ -4688,7 +4394,7 @@ public actor RoutingEngine {
                     continue
                 }
                 
-                let tentativeGScore = (gScore[current] ?? .infinity) + edge.distance
+                let tentativeGScore = (gScore[current] ?? .infinity) + calculateEdgeWeight(edge, node: node, preferences: preferences)
                 
                 if !openSet.contains(edge.to) {
                     openSet.insert(edge.to)
@@ -4703,6 +4409,36 @@ public actor RoutingEngine {
         }
         
         throw RoutingError.noRouteFound
+    }
+    
+    private func calculateEdgeWeight(_ edge: Edge, node: Node, preferences: RoutePreferences) -> Double {
+        var weight = edge.distance
+        
+        switch edge.type {
+        case .lift:
+            if preferences.avoidCrowds,
+               case .lift(let lift) = node.type,
+               let waitTime = lift.waitTime,
+               waitTime > (preferences.maxWaitTime ?? 15) {
+                // Apply significant penalty for crowded lifts
+                weight *= 2.5
+            }
+            
+        case .run:
+            if preferences.preferLessStrenuous {
+                // Apply penalty based on run length and elevation change
+                let elevationPenalty = abs(node.elevation) * 0.5
+                weight = weight * (1 + elevationPenalty/1000)
+            }
+            
+        case .connection:
+            // Apply small penalty to walking connections if preferring less strenuous routes
+            if preferences.preferLessStrenuous {
+                weight *= 1.2
+            }
+        }
+        
+        return weight
     }
     
     private func reconstructPath(cameFrom: [String: String], current: String) -> [String] {
@@ -4806,7 +4542,7 @@ public actor RoutingEngine {
         let type: Route.Segment.SegmentType
         
         switch (from.type, to.type) {
-        case (.lift(let lift), .run):
+        case (.lift(let lift), _):
             type = .lift(lift)
         case (.run(let run), _):
             type = .run(run)
@@ -4844,6 +4580,20 @@ public struct Node {
     let id: String
     let coordinate: CLLocationCoordinate2D
     let elevation: Double
+    let type: NodeType
+    
+    init(id: String, coordinate: CLLocationCoordinate2D, elevation: Double, type: NodeType = .point) {
+        self.id = id
+        self.coordinate = coordinate
+        self.elevation = elevation
+        self.type = type
+    }
+}
+
+public enum NodeType {
+    case lift(Lift)
+    case run(Run)
+    case point
 }
 
 public struct Edge {
@@ -4877,31 +4627,12 @@ public enum RoutingError: Error {
     case invalidPath
 } 
 
+
 ### File: Sources/SkiTrailsCore/Routing/RoutingTypes.swift
 import Foundation
 import CoreLocation
 
-public enum SkiDifficulty: String, CaseIterable, Comparable {
-    case beginner, intermediate, advanced, expert
-    
-    public static func < (lhs: SkiDifficulty, rhs: SkiDifficulty) -> Bool {
-        let order: [SkiDifficulty] = [.beginner, .intermediate, .advanced, .expert]
-        guard let lhsIndex = order.firstIndex(of: lhs),
-              let rhsIndex = order.firstIndex(of: rhs) else {
-            return false
-        }
-        return lhsIndex < rhsIndex
-    }
-    
-    public var color: String {
-        switch self {
-        case .beginner: return "green"
-        case .intermediate: return "blue"
-        case .advanced: return "black"
-        case .expert: return "doubleBlack"
-        }
-    }
-}
+public typealias SkiDifficulty = Run.Difficulty
 
 public struct Route {
     public let segments: [Segment]
@@ -4924,6 +4655,779 @@ public struct Route {
             public let latitude: Double
             public let longitude: Double
             public let altitude: Double
+            
+            public init(latitude: Double, longitude: Double, altitude: Double) {
+                self.latitude = latitude
+                self.longitude = longitude
+                self.altitude = altitude
+            }
+        }
+        
+        public init(type: SegmentType, path: [Location], distance: Double) {
+            self.type = type
+            self.path = path
+            self.distance = distance
+        }
+    }
+    
+    public init(segments: [Segment], totalDistance: Double, estimatedTime: TimeInterval, difficulty: SkiDifficulty) {
+        self.segments = segments
+        self.totalDistance = totalDistance
+        self.estimatedTime = estimatedTime
+        self.difficulty = difficulty
+    }
+} 
+
+### File: Sources/SkiTrailsCore/Services/APIClient.swift
+import Foundation
+import CoreLocation
+
+public enum APIError: Error, LocalizedError {
+    case invalidURL
+    case invalidResponse
+    case networkError(Error)
+    case decodingError(Error)
+    case serverError(Int)
+    case unauthorized
+    case unknown
+    
+    public var errorDescription: String? {
+        switch self {
+        case .invalidURL:
+            return "Invalid URL configuration"
+        case .invalidResponse:
+            return "Invalid server response"
+        case .networkError(let error):
+            return "Network error: \(error.localizedDescription)"
+        case .decodingError(let error):
+            return "Failed to decode response: \(error.localizedDescription)"
+        case .serverError(let code):
+            return "Server error with code: \(code)"
+        case .unauthorized:
+            return "Unauthorized access"
+        case .unknown:
+            return "An unknown error occurred"
+        }
+    }
+}
+
+public actor APIClient {
+    public static let shared = APIClient()
+    
+    private let session: URLSession
+    private let decoder: JSONDecoder
+    private let encoder: JSONEncoder
+    
+    private init() {
+        let configuration = URLSessionConfiguration.default
+        configuration.timeoutIntervalForRequest = 30
+        configuration.timeoutIntervalForResource = 300
+        self.session = URLSession(configuration: configuration)
+        
+        self.decoder = JSONDecoder()
+        self.decoder.keyDecodingStrategy = .convertFromSnakeCase
+        self.decoder.dateDecodingStrategy = .iso8601
+        
+        self.encoder = JSONEncoder()
+        self.encoder.keyEncodingStrategy = .convertToSnakeCase
+        self.encoder.dateEncodingStrategy = .iso8601
+    }
+    
+    public func fetchResortList() async throws -> [Resort] {
+        let url = try buildURL(path: "/resorts")
+        return try await fetch(url)
+    }
+    
+    public func fetchWeather(for resort: Resort) async throws -> WeatherInfo {
+        let url = try buildURL(path: "/weather/\(resort.id)")
+        return try await fetch(url)
+    }
+    
+    public func fetchLiftStatus(for resort: Resort) async throws -> [Lift] {
+        let url = try buildURL(path: "/lifts/\(resort.id)")
+        return try await fetch(url)
+    }
+    
+    public func fetchResortInfo(id: String) async throws -> Resort {
+        let url = try buildURL(path: "/resorts/\(id)")
+        return try await fetch(url)
+    }
+    
+    private func buildURL(path: String) throws -> URL {
+        guard let baseURL = try? CoreConfig.getAPIBaseURL(),
+              let url = URL(string: path, relativeTo: baseURL) else {
+            throw APIError.invalidURL
+        }
+        return url
+    }
+    
+    private func fetch<T: Decodable>(_ request: URLRequest) async throws -> T {
+        do {
+            let (data, response) = try await session.data(for: request)
+            
+            guard let httpResponse = response as? HTTPURLResponse else {
+                throw APIError.invalidResponse
+            }
+            
+            switch httpResponse.statusCode {
+            case 200...299:
+                do {
+                    return try decoder.decode(T.self, from: data)
+                } catch {
+                    throw APIError.decodingError(error)
+                }
+            case 401:
+                throw APIError.unauthorized
+            case 400...499:
+                throw APIError.invalidResponse
+            case 500...599:
+                throw APIError.serverError(httpResponse.statusCode)
+            default:
+                throw APIError.unknown
+            }
+        } catch is CancellationError {
+            throw APIError.networkError(NSError(domain: "APIClient", code: -999, userInfo: [NSLocalizedDescriptionKey: "Request was cancelled"]))
+        } catch {
+            throw APIError.networkError(error)
+        }
+    }
+    
+    private func fetch<T: Decodable>(_ url: URL) async throws -> T {
+        var request = URLRequest(url: url)
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        if let token = try? CoreConfig.getValue(for: "API_AUTH_TOKEN") {
+            request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
+        }
+        
+        return try await fetch(request)
+    }
+}
+
+public struct WeatherInfo: Codable {
+    public let temperature: Double
+    public let conditions: String
+    public let snowDepth: Double
+    public let windSpeed: Double
+    public let visibility: Double
+    
+    public init(temperature: Double, conditions: String, snowDepth: Double, windSpeed: Double, visibility: Double) {
+        self.temperature = temperature
+        self.conditions = conditions
+        self.snowDepth = snowDepth
+        self.windSpeed = windSpeed
+        self.visibility = visibility
+    }
+} 
+
+### File: SkiTrailsCore/Package.swift
+// swift-tools-version: 5.9
+import PackageDescription
+
+let package = Package(
+    name: "SkiTrailsCore",
+    platforms: [
+        .iOS(.v17)
+    ],
+    products: [
+        .library(
+            name: "SkiTrailsCore",
+            targets: ["SkiTrailsCore"]),
+    ],
+    dependencies: [
+        .package(url: "https://github.com/mapbox/mapbox-maps-ios.git", .upToNextMajor(from: "10.16.0")),
+        .package(url: "https://github.com/mapbox/turf-swift.git", exact: "2.8.0")
+    ],
+    targets: [
+        .target(
+            name: "SkiTrailsCore",
+            dependencies: [
+                .product(name: "MapboxMaps", package: "mapbox-maps-ios"),
+                .product(name: "Turf", package: "turf-swift")
+            ]),
+        .testTarget(
+            name: "SkiTrailsCoreTests",
+            dependencies: ["SkiTrailsCore"]),
+    ]
+) 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/ViewModels/MapViewModel.swift
+import Foundation
+import MapboxMaps
+
+public class MapViewModel: ObservableObject {
+    @Published public var camera: CameraOptions
+    
+    public init(camera: CameraOptions = MapConfig.defaultCamera) {
+        self.camera = camera
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Configuration/Configuration.swift
+import Foundation
+
+public protocol Configuration {
+    var mapboxPublicKey: String { get }
+}
+
+public struct ProductionConfiguration: Configuration {
+    public let mapboxPublicKey: String
+    
+    public init(mapboxPublicKey: String) {
+        self.mapboxPublicKey = mapboxPublicKey
+    }
+}
+
+public struct DevelopmentConfiguration: Configuration {
+    public let mapboxPublicKey: String
+    
+    public init(mapboxPublicKey: String = ProcessInfo.processInfo.environment["MAPBOX_PUBLIC_KEY"] ?? "") {
+        self.mapboxPublicKey = mapboxPublicKey
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Configuration/CoreConfig.swift
+import Foundation
+
+public enum Environment {
+    case development
+    case production
+}
+
+public class CoreConfig {
+    public static let shared = CoreConfig()
+    
+    private var environment: Environment = .development
+    private var configuration: Configuration?
+    
+    private init() {}
+    
+    public func configure(for environment: Environment, with configuration: Configuration? = nil) {
+        self.environment = environment
+        self.configuration = configuration
+        
+        if configuration == nil {
+            switch environment {
+            case .development:
+                self.configuration = DevelopmentConfiguration()
+            case .production:
+                fatalError("Production configuration must be provided")
+            }
+        }
+    }
+    
+    public var mapboxPublicKey: String {
+        guard let configuration = configuration else {
+            fatalError("CoreConfig must be configured before use")
+        }
+        return configuration.mapboxPublicKey
+    }
+    
+    public var isDevelopment: Bool {
+        return environment == .development
+    }
+    
+    public var isProduction: Bool {
+        return environment == .production
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Configuration/MapConfig.swift
+import Foundation
+import MapboxMaps
+
+public struct MapConfig {
+    public static let defaultCamera = CameraOptions(
+        center: CLLocationCoordinate2D(latitude: 38.956414, longitude: -119.942227),
+        zoom: 12,
+        bearing: 0,
+        pitch: 0
+    )
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Models/AppState.swift
+import Foundation
+import MapboxMaps
+
+public class AppState: ObservableObject {
+    @Published public var selectedResort: Resort?
+    @Published public var selectedFeature: MapFeature?
+    @Published public var routeStart: MapFeature?
+    @Published public var routeEnd: MapFeature?
+    @Published public var route: [CLLocationCoordinate2D]?
+    
+    public init(selectedResort: Resort? = nil,
+         selectedFeature: MapFeature? = nil,
+         routeStart: MapFeature? = nil,
+         routeEnd: MapFeature? = nil,
+         route: [CLLocationCoordinate2D]? = nil) {
+        self.selectedResort = selectedResort
+        self.selectedFeature = selectedFeature
+        self.routeStart = routeStart
+        self.routeEnd = routeEnd
+        self.route = route
+    }
+    
+    public func clearRoute() {
+        routeStart = nil
+        routeEnd = nil
+        route = nil
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Models/HeavenlyData.swift
+import Foundation
+import MapboxMaps
+
+public struct HeavenlyData {
+    public static let resort = Resort(
+        id: "heavenly",
+        name: "Heavenly",
+        location: CLLocationCoordinate2D(latitude: 38.956414, longitude: -119.942227),
+        bounds: CoordinateBounds(
+            southwest: CLLocationCoordinate2D(latitude: 38.925, longitude: -119.95),
+            northeast: CLLocationCoordinate2D(latitude: 38.97, longitude: -119.90)
+        ),
+        lifts: [
+            Resort.Lift(
+                id: "gunbarrel",
+                name: "Gunbarrel Express",
+                type: .chairlift,
+                status: .open,
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 38.939690, longitude: -119.944516),
+                    CLLocationCoordinate2D(latitude: 38.947947, longitude: -119.943636)
+                ]
+            ),
+            Resort.Lift(
+                id: "canyon",
+                name: "Canyon Express",
+                type: .chairlift,
+                status: .open,
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 38.925690, longitude: -119.916516),
+                    CLLocationCoordinate2D(latitude: 38.933947, longitude: -119.913636)
+                ]
+            )
+        ],
+        runs: [
+            Resort.Run(
+                id: "gunbarrel_run",
+                name: "Gunbarrel",
+                difficulty: .expert,
+                status: .open,
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 38.947947, longitude: -119.943636),
+                    CLLocationCoordinate2D(latitude: 38.939690, longitude: -119.944516)
+                ]
+            ),
+            Resort.Run(
+                id: "orion",
+                name: "Orion",
+                difficulty: .intermediate,
+                status: .open,
+                coordinates: [
+                    CLLocationCoordinate2D(latitude: 38.933947, longitude: -119.913636),
+                    CLLocationCoordinate2D(latitude: 38.925690, longitude: -119.916516)
+                ]
+            )
+        ],
+        buildings: [
+            Resort.Building(
+                id: "california_lodge",
+                name: "California Lodge",
+                type: .lodge,
+                coordinates: CLLocationCoordinate2D(latitude: 38.939690, longitude: -119.944516)
+            ),
+            Resort.Building(
+                id: "tamarack_lodge",
+                name: "Tamarack Lodge",
+                type: .lodge,
+                coordinates: CLLocationCoordinate2D(latitude: 38.925690, longitude: -119.916516)
+            )
+        ]
+    )
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Models/MapFeature.swift
+import Foundation
+import MapboxMaps
+
+public enum MapFeature: Identifiable {
+    case lift(Resort.Lift)
+    case run(Resort.Run)
+    case building(Resort.Building)
+    
+    public var id: String {
+        switch self {
+        case .lift(let lift):
+            return lift.id
+        case .run(let run):
+            return run.id
+        case .building(let building):
+            return building.id
+        }
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Models/Resort.swift
+import Foundation
+import MapboxMaps
+import Turf
+
+public struct Resort: Identifiable, Codable {
+    public let id: String
+    public let name: String
+    public let location: CLLocationCoordinate2D
+    public let bounds: CoordinateBounds
+    public let lifts: [Lift]
+    public let runs: [Run]
+    public let buildings: [Building]
+    
+    public init(id: String, name: String, location: CLLocationCoordinate2D, bounds: CoordinateBounds, lifts: [Lift], runs: [Run], buildings: [Building]) {
+        self.id = id
+        self.name = name
+        self.location = location
+        self.bounds = bounds
+        self.lifts = lifts
+        self.runs = runs
+        self.buildings = buildings
+    }
+    
+    public struct Lift: Identifiable, Codable {
+        public let id: String
+        public let name: String
+        public let type: LiftType
+        public let status: Status
+        public let coordinates: [CLLocationCoordinate2D]
+        
+        public init(id: String, name: String, type: LiftType, status: Status, coordinates: [CLLocationCoordinate2D]) {
+            self.id = id
+            self.name = name
+            self.type = type
+            self.status = status
+            self.coordinates = coordinates
+        }
+        
+        public enum LiftType: String, Codable {
+            case chairlift
+            case gondola
+            case tbar
+            case platter
+            case rope
+            case magic_carpet
+        }
+    }
+    
+    public struct Run: Identifiable, Codable {
+        public let id: String
+        public let name: String
+        public let difficulty: Difficulty
+        public let status: Status
+        public let coordinates: [CLLocationCoordinate2D]
+        
+        public init(id: String, name: String, difficulty: Difficulty, status: Status, coordinates: [CLLocationCoordinate2D]) {
+            self.id = id
+            self.name = name
+            self.difficulty = difficulty
+            self.status = status
+            self.coordinates = coordinates
+        }
+        
+        public enum Difficulty: String, Codable {
+            case beginner
+            case intermediate
+            case advanced
+            case expert
+        }
+    }
+    
+    public struct Building: Identifiable, Codable {
+        public let id: String
+        public let name: String
+        public let type: BuildingType
+        public let coordinates: CLLocationCoordinate2D
+        
+        public init(id: String, name: String, type: BuildingType, coordinates: CLLocationCoordinate2D) {
+            self.id = id
+            self.name = name
+            self.type = type
+            self.coordinates = coordinates
+        }
+        
+        public enum BuildingType: String, Codable {
+            case lodge
+            case restaurant
+            case bathroom
+            case parking
+            case firstaid
+            case rental
+            case ticket
+        }
+    }
+}
+
+extension CLLocationCoordinate2D: Codable {
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.unkeyedContainer()
+        try container.encode(longitude)
+        try container.encode(latitude)
+    }
+    
+    public init(from decoder: Decoder) throws {
+        var container = try decoder.unkeyedContainer()
+        let longitude = try container.decode(Double.self)
+        let latitude = try container.decode(Double.self)
+        self.init(latitude: latitude, longitude: longitude)
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Models/Status.swift
+import Foundation
+
+public enum Status: String, Codable {
+    case open
+    case closed
+    case hold
+    case scheduled
+    case unknown
+    
+    public var isOpen: Bool {
+        return self == .open
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Routing/RoutingEngine.swift
+import Foundation
+import MapboxMaps
+import Turf
+
+public class RoutingEngine {
+    private var nodes: [RouteNode] = []
+    private var graph: [RouteNode: Set<RouteNode>] = [:]
+    
+    public init() {}
+    
+    public func buildGraph(from resort: Resort) {
+        nodes = []
+        graph = [:]
+        
+        // Add all lift coordinates as nodes
+        for lift in resort.lifts where lift.status.isOpen {
+            for coordinate in lift.coordinates {
+                addNode(coordinate)
+            }
+            
+            // Connect consecutive lift coordinates
+            for i in 0..<lift.coordinates.count-1 {
+                connect(lift.coordinates[i], to: lift.coordinates[i+1])
+            }
+        }
+        
+        // Add all run coordinates as nodes
+        for run in resort.runs where run.status.isOpen {
+            for coordinate in run.coordinates {
+                addNode(coordinate)
+            }
+            
+            // Connect consecutive run coordinates
+            for i in 0..<run.coordinates.count-1 {
+                connect(run.coordinates[i], to: run.coordinates[i+1])
+            }
+        }
+    }
+    
+    private func addNode(_ coordinate: CLLocationCoordinate2D) {
+        let node = RouteNode(coordinate: coordinate)
+        if !nodes.contains(node) {
+            nodes.append(node)
+            graph[node] = Set<RouteNode>()
+        }
+    }
+    
+    private func connect(_ from: CLLocationCoordinate2D, to: CLLocationCoordinate2D) {
+        let fromNode = nodes.first { $0.coordinate.latitude == from.latitude && $0.coordinate.longitude == from.longitude }!
+        let toNode = nodes.first { $0.coordinate.latitude == to.latitude && $0.coordinate.longitude == to.longitude }!
+        
+        graph[fromNode]?.insert(toNode)
+        graph[toNode]?.insert(fromNode)
+    }
+    
+    public func findRoute(from start: MapFeature, to end: MapFeature) -> [CLLocationCoordinate2D]? {
+        let startCoord: CLLocationCoordinate2D
+        let endCoord: CLLocationCoordinate2D
+        
+        switch start {
+        case .lift(let lift):
+            startCoord = lift.coordinates.first!
+        case .run(let run):
+            startCoord = run.coordinates.first!
+        case .building(let building):
+            startCoord = building.coordinates
+        }
+        
+        switch end {
+        case .lift(let lift):
+            endCoord = lift.coordinates.first!
+        case .run(let run):
+            endCoord = run.coordinates.first!
+        case .building(let building):
+            endCoord = building.coordinates
+        }
+        
+        guard let startNode = findNearestNode(to: startCoord),
+              let endNode = findNearestNode(to: endCoord) else {
+            return nil
+        }
+        
+        return findPath(from: startNode, to: endNode)
+    }
+    
+    private func findNearestNode(to coordinate: CLLocationCoordinate2D) -> RouteNode? {
+        return nodes.min { node1, node2 in
+            let dist1 = calculateDistance(from: coordinate, to: node1.coordinate)
+            let dist2 = calculateDistance(from: coordinate, to: node2.coordinate)
+            return dist1 < dist2
+        }
+    }
+    
+    private func calculateDistance(from coord1: CLLocationCoordinate2D, to coord2: CLLocationCoordinate2D) -> Double {
+        let location1 = CLLocation(latitude: coord1.latitude, longitude: coord1.longitude)
+        let location2 = CLLocation(latitude: coord2.latitude, longitude: coord2.longitude)
+        return location1.distance(from: location2)
+    }
+    
+    private func findPath(from start: RouteNode, to end: RouteNode) -> [CLLocationCoordinate2D]? {
+        var frontier = PriorityQueue<(RouteNode, Double)>(sort: { $0.1 < $1.1 })
+        frontier.enqueue((start, 0))
+        
+        var cameFrom: [RouteNode: RouteNode] = [:]
+        var costSoFar: [RouteNode: Double] = [start: 0]
+        
+        while let current = frontier.dequeue()?.0 {
+            if current == end {
+                break
+            }
+            
+            guard let neighbors = graph[current] else { continue }
+            
+            for next in neighbors {
+                let newCost = costSoFar[current]! + calculateDistance(from: current.coordinate, to: next.coordinate)
+                
+                if costSoFar[next] == nil || newCost < costSoFar[next]! {
+                    costSoFar[next] = newCost
+                    let priority = newCost + calculateDistance(from: next.coordinate, to: end.coordinate)
+                    frontier.enqueue((next, priority))
+                    cameFrom[next] = current
+                }
+            }
+        }
+        
+        // Reconstruct path
+        var current = end
+        var path: [CLLocationCoordinate2D] = [current.coordinate]
+        
+        while current != start {
+            guard let next = cameFrom[current] else { return nil }
+            current = next
+            path.append(current.coordinate)
+        }
+        
+        return path.reversed()
+    }
+}
+
+// Priority Queue implementation
+private struct PriorityQueue<T> {
+    private var elements: [(T, Double)] = []
+    private let sort: (Double, Double) -> Bool
+    
+    init(sort: @escaping (Double, Double) -> Bool) {
+        self.sort = sort
+    }
+    
+    mutating func enqueue(_ element: (T, Double)) {
+        elements.append(element)
+        elements.sort { sort($0.1, $1.1) }
+    }
+    
+    mutating func dequeue() -> (T, Double)? {
+        return elements.isEmpty ? nil : elements.removeFirst()
+    }
+    
+    var isEmpty: Bool {
+        return elements.isEmpty
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Routing/RoutingTypes.swift
+import Foundation
+import MapboxMaps
+
+public struct RouteNode: Hashable {
+    public let coordinate: CLLocationCoordinate2D
+    public let connections: Set<RouteNode>
+    
+    public init(coordinate: CLLocationCoordinate2D, connections: Set<RouteNode> = []) {
+        self.coordinate = coordinate
+        self.connections = connections
+    }
+    
+    public func hash(into hasher: inout Hasher) {
+        hasher.combine(coordinate.latitude)
+        hasher.combine(coordinate.longitude)
+    }
+    
+    public static func == (lhs: RouteNode, rhs: RouteNode) -> Bool {
+        return lhs.coordinate.latitude == rhs.coordinate.latitude &&
+               lhs.coordinate.longitude == rhs.coordinate.longitude
+    }
+} 
+
+### File: SkiTrailsCore/Sources/SkiTrailsCore/Services/APIClient.swift
+import Foundation
+
+public enum APIError: Error {
+    case invalidURL
+    case networkError(Error)
+    case invalidResponse
+    case decodingError(Error)
+}
+
+public protocol APIClientProtocol {
+    func fetch<T: Decodable>(_ type: T.Type, from endpoint: String) async throws -> T
+}
+
+public class APIClient: APIClientProtocol {
+    private let baseURL: String
+    private let session: URLSession
+    
+    public init(baseURL: String, session: URLSession = .shared) {
+        self.baseURL = baseURL
+        self.session = session
+    }
+    
+    public func fetch<T: Decodable>(_ type: T.Type, from endpoint: String) async throws -> T {
+        guard let url = URL(string: baseURL + endpoint) else {
+            throw APIError.invalidURL
+        }
+        
+        do {
+            let (data, response) = try await session.data(from: url)
+            
+            guard let httpResponse = response as? HTTPURLResponse,
+                  (200...299).contains(httpResponse.statusCode) else {
+                throw APIError.invalidResponse
+            }
+            
+            do {
+                let decoder = JSONDecoder()
+                return try decoder.decode(T.self, from: data)
+            } catch {
+                throw APIError.decodingError(error)
+            }
+        } catch {
+            throw APIError.networkError(error)
         }
     }
 } 
@@ -4932,6 +5436,9 @@ public struct Route {
 <?xml version="1.0" encoding="UTF-8"?>
 <Workspace
    version = "1.0">
+   <FileRef
+      location = "self:">
+   </FileRef>
 </Workspace>
 
 
@@ -4942,10 +5449,38 @@ public struct Route {
 <dict>
 	<key>SchemeUserState</key>
 	<dict>
+		<key>SkiTrails-Package.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>0</integer>
+		</dict>
+		<key>SkiTrails.xcscheme_^#shared#^_</key>
+		<dict>
+			<key>orderHint</key>
+			<integer>2</integer>
+		</dict>
 		<key>SkiTrailsCore.xcscheme_^#shared#^_</key>
 		<dict>
 			<key>orderHint</key>
 			<integer>1</integer>
+		</dict>
+	</dict>
+	<key>SuppressBuildableAutocreation</key>
+	<dict>
+		<key>SkiTrails</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>SkiTrailsCore</key>
+		<dict>
+			<key>primary</key>
+			<true/>
+		</dict>
+		<key>SkiTrailsCoreTests</key>
+		<dict>
+			<key>primary</key>
+			<true/>
 		</dict>
 	</dict>
 </dict>

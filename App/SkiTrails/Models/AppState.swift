@@ -18,6 +18,13 @@ class AppState: ObservableObject {
         locationManager.requestAuthorization()
     }
     
+    static var preview: AppState {
+        let state = AppState()
+        state.resorts = [Resort.preview]
+        state.selectedResort = Resort.preview
+        return state
+    }
+    
     func loadResorts() async {
         do {
             resorts = try await apiClient.fetchResortList()
