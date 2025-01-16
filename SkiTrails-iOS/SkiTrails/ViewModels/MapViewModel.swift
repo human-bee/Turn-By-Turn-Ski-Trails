@@ -8,6 +8,8 @@ class MapViewModel: ObservableObject {
     @Published var mapLoaded = false
     @Published var showFeatureDetails = false
     
+    var mapView: MapView?
+    
     let defaultCenter = CLLocationCoordinate2D(latitude: 39.6403, longitude: -106.3742) // Vail, CO
     let defaultZoom = 14.0
     let defaultPitch = 45.0
@@ -30,5 +32,13 @@ class MapViewModel: ObservableObject {
             bearing: defaultBearing,
             pitch: defaultPitch
         )
+    }
+    
+    func handleMapUpdate(_ mapView: MapView) {
+        // Handle any map state updates after gesture animations
+        // For now, we'll just ensure the map is marked as loaded
+        if !mapLoaded {
+            mapLoaded = true
+        }
     }
 } 

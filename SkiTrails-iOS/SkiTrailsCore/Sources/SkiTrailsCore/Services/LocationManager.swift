@@ -17,10 +17,15 @@ public class LocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
         manager.distanceFilter = 10
         manager.allowsBackgroundLocationUpdates = true
         manager.pausesLocationUpdatesAutomatically = false
+        manager.showsBackgroundLocationIndicator = true
     }
     
     public func requestWhenInUseAuthorization() {
         manager.requestWhenInUseAuthorization()
+    }
+    
+    public func requestAlwaysAuthorization() {
+        manager.requestAlwaysAuthorization()
     }
     
     public func startUpdatingLocation() {
@@ -47,7 +52,10 @@ public class LocationManager: NSObject, ObservableObject, CLLocationManagerDeleg
         authorizationStatus = manager.authorizationStatus
         
         switch manager.authorizationStatus {
-        case .authorizedWhenInUse, .authorizedAlways:
+        case .authorizedWhenInUse:
+            // If we have when in use, request always authorization for background updates
+            manager.requestAlwaysAuthorization()
+        case .authorizedAlways:
             manager.startUpdatingLocation()
         case .notDetermined:
             manager.requestWhenInUseAuthorization()

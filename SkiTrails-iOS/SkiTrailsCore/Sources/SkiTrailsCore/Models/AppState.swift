@@ -13,6 +13,7 @@ public class AppState: ObservableObject {
     @Published public private(set) var selectedResort: Resort?
     @Published public var selectedDestination: Location?
     @Published public var currentLocation: CLLocation?
+    @Published public var activeRoute: Route?
     
     public let locationManager: LocationManager
     private let apiClient: APIClient

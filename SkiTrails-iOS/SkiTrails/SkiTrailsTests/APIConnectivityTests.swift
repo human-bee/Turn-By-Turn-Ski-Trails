@@ -1,4 +1,5 @@
 import XCTest
+import MapboxMaps
 @testable import SkiTrails
 @testable import SkiTrailsCore
 
@@ -38,11 +39,8 @@ final class APIConnectivityTests: XCTestCase {
     
     func testWeatherAPIConnection() async throws {
         // Test Weather API connectivity
-        guard let apiKey = EnvConfig.weatherUnlockedApiKey,
-              let appId = EnvConfig.weatherUnlockedAppId else {
-            XCTFail("Weather API credentials not found")
-            return
-        }
+        let apiKey = EnvConfig.weatherUnlockedApiKey
+        let appId = EnvConfig.weatherUnlockedAppId
         
         // Example coordinates for Palisades Tahoe
         let lat = "39.1969"

@@ -87,7 +87,7 @@ final class SkiTrailsTests: XCTestCase {
     private func createTestResort() -> Resort {
         let lifts = [
             Lift(
-                id: UUID(),
+                id: EntityID(UUID()),
                 name: "Test Lift 1",
                 status: .open,
                 startLocation: Location(latitude: 39.6403, longitude: -106.3742, altitude: 2500),
@@ -96,7 +96,7 @@ final class SkiTrailsTests: XCTestCase {
                 waitTime: 300
             ),
             Lift(
-                id: UUID(),
+                id: EntityID(UUID()),
                 name: "Test Lift 2",
                 status: .open,
                 startLocation: Location(latitude: 39.6450, longitude: -106.3750, altitude: 3000),
@@ -108,7 +108,7 @@ final class SkiTrailsTests: XCTestCase {
         
         let runs = [
             Run(
-                id: UUID(),
+                id: EntityID(UUID()),
                 name: "Easy Street",
                 difficulty: .beginner,
                 status: .open,
@@ -118,7 +118,7 @@ final class SkiTrailsTests: XCTestCase {
                 verticalDrop: 500
             ),
             Run(
-                id: UUID(),
+                id: EntityID(UUID()),
                 name: "Blue Heaven",
                 difficulty: .intermediate,
                 status: .open,
@@ -130,7 +130,7 @@ final class SkiTrailsTests: XCTestCase {
         ]
         
         return Resort(
-            id: UUID(),
+            id: EntityID(UUID()),
             name: "Test Resort",
             lifts: lifts,
             runs: runs

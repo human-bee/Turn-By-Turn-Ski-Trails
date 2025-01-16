@@ -77,6 +77,7 @@ struct RouteDetailView: View {
     
     private func startNavigation() {
         appState.activeRoute = route
+        appState.navigationActive = true
         dismiss()
     }
     

@@ -41,6 +41,11 @@ targets:
           - UIInterfaceOrientationLandscapeRight
         UIRequiredDeviceCapabilities:
           - armv7
+        UIBackgroundModes:
+          - location
+        NSLocationAlwaysAndWhenInUseUsageDescription: "SkiTrails needs your location to track your ski runs and provide navigation, even when the app is in the background."
+        NSLocationWhenInUseUsageDescription: "SkiTrails needs your location to show where you are on the map and track your ski runs."
+        NSLocationAlwaysUsageDescription: "SkiTrails needs your location to track your ski runs and provide navigation, even when the app is in the background."
   SkiTrailsCore:
     type: framework
     platform: iOS
@@ -65,10 +70,19 @@ targets:
     dependencies:
       - target: SkiTrails
       - target: SkiTrailsCore
+      - package: MapboxMaps
+      - package: Turf
     settings:
       base:
         GENERATE_INFOPLIST_FILE: YES
         PRODUCT_BUNDLE_IDENTIFIER: Bens-Bots.SkiTrails.Tests
+      configs:
+        Debug:
+          MAPBOX_ACCESS_TOKEN: pk.eyJ1IjoiYmVlaHVtYW4iLCJhIjoiY201bmRib2VkMDlvdjJrbmNmaHUybGFlYSJ9.n285XduciUEFEWEfIBR1zQ
+          WEATHER_UNLOCKED_API_KEY: 9e3b2bef9b22803b7c81064a2cb796bd
+          WEATHER_UNLOCKED_APP_ID: e23039aa
+          LIFTIE_API_BASE_URL: https://liftie.info/api/resort
+          LIFTIE_RESORT_LIST: alpine,palisades
   SkiTrailsUITests:
     type: bundle.ui-testing
     platform: iOS

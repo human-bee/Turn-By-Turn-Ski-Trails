@@ -1,4 +1,5 @@
 import SwiftUI
+import SkiTrailsCore
 
 struct ErrorAlertView: View {
     let error: UserFacingError

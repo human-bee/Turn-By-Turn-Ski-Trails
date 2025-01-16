@@ -20,6 +20,16 @@
 	<string>1.0</string>
 	<key>CFBundleVersion</key>
 	<string>1</string>
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>SkiTrails needs your location to track your ski runs and provide navigation, even when the app is in the background.</string>
+	<key>NSLocationAlwaysUsageDescription</key>
+	<string>SkiTrails needs your location to track your ski runs and provide navigation, even when the app is in the background.</string>
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>SkiTrails needs your location to show where you are on the map and track your ski runs.</string>
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>location</string>
+	</array>
 	<key>UILaunchScreen</key>
 	<dict/>
 	<key>UIRequiredDeviceCapabilities</key>
