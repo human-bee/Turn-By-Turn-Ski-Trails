@@ -221,7 +221,9 @@ public actor RoutingEngine {
                 longitude: a.coordinate.longitude
             )
             let bLocation = CLLocation(
-                latitude: b.coordinate.latitude, longitude)
+                latitude: b.coordinate.latitude,
+                longitude: b.coordinate.longitude
+            )
             
             return location.distance(from: aLocation) < location.distance(from: bLocation)
         }) else {

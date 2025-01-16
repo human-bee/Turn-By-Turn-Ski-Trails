@@ -1,4 +1,5 @@
 import Foundation
+import CoreLocation
 
 public struct EntityID: Codable, Hashable, Identifiable {
     public let rawValue: String
@@ -29,6 +30,19 @@ public struct Resort: Identifiable, Codable {
     public let name: String
     public let lifts: [Lift]
     public let runs: [Run]
+    
+    public var coordinate: CLLocationCoordinate2D {
+        // Calculate the center coordinate based on all lift and run locations
+        let allLocations = lifts.flatMap { [$0.startLocation, $0.endLocation] } + runs.flatMap { [$0.startLocation, $0.endLocation] }
+        let totalLatitude = allLocations.reduce(0.0) { $0 + $1.latitude }
+        let totalLongitude = allLocations.reduce(0.0) { $0 + $1.longitude }
+        let count = Double(allLocations.count)
+        
+        return CLLocationCoordinate2D(
+            latitude: totalLatitude / count,
+            longitude: totalLongitude / count
+        )
+    }
     
     public init(id: EntityID, name: String, lifts: [Lift], runs: [Run]) {
         self.id = id
@@ -167,9 +181,19 @@ public struct Location: Equatable, Hashable, Codable {
     public let longitude: Double
     public let altitude: Double
     
+    public var coordinate: CLLocationCoordinate2D {
+        CLLocationCoordinate2D(latitude: latitude, longitude: longitude)
+    }
+    
     public init(latitude: Double, longitude: Double, altitude: Double) {
         self.latitude = latitude
         self.longitude = longitude
+        self.altitude = altitude
+    }
+    
+    public init(coordinate: CLLocationCoordinate2D, altitude: Double) {
+        self.latitude = coordinate.latitude
+        self.longitude = coordinate.longitude
         self.altitude = altitude
     }
 }

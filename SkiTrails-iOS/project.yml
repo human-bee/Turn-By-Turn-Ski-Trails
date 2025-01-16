@@ -1,0 +1,82 @@
+name: SkiTrails
+options:
+  bundleIdPrefix: Bens-Bots
+  deploymentTarget:
+    iOS: 17.0
+packages:
+  MapboxMaps:
+    url: https://github.com/mapbox/mapbox-maps-ios.git
+    from: 10.16.0
+  Turf:
+    url: https://github.com/mapbox/turf-swift.git
+    exactVersion: 2.8.0
+targets:
+  SkiTrails:
+    type: application
+    platform: iOS
+    sources: 
+      - path: SkiTrails
+        excludes:
+          - SkiTrailsTests/**
+    dependencies:
+      - package: MapboxMaps
+      - package: Turf
+      - target: SkiTrailsCore
+    settings:
+      base:
+        INFOPLIST_FILE: SkiTrails/Info.plist
+        PRODUCT_BUNDLE_IDENTIFIER: Bens-Bots.SkiTrails
+        MARKETING_VERSION: 1.0.0
+        CURRENT_PROJECT_VERSION: 1
+    info:
+      path: SkiTrails/Info.plist
+      properties:
+        CFBundleName: SkiTrails
+        CFBundleDisplayName: Ski Trails
+        CFBundlePackageType: APPL
+        UILaunchScreen: {}
+        UISupportedInterfaceOrientations:
+          - UIInterfaceOrientationPortrait
+          - UIInterfaceOrientationLandscapeLeft
+          - UIInterfaceOrientationLandscapeRight
+        UIRequiredDeviceCapabilities:
+          - armv7
+  SkiTrailsCore:
+    type: framework
+    platform: iOS
+    sources:
+      - path: SkiTrailsCore/Sources/SkiTrailsCore
+    dependencies:
+      - package: MapboxMaps
+      - package: Turf
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: Bens-Bots.SkiTrails.Core
+        CURRENT_PROJECT_VERSION: 1
+        MARKETING_VERSION: 1.0.0
+  SkiTrailsTests:
+    type: bundle.unit-test
+    platform: iOS
+    sources:
+      - path: SkiTrails/SkiTrailsTests
+        excludes:
+          - SkiTrailsUITests/**
+    dependencies:
+      - target: SkiTrails
+      - target: SkiTrailsCore
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: Bens-Bots.SkiTrails.Tests
+  SkiTrailsUITests:
+    type: bundle.ui-testing
+    platform: iOS
+    sources:
+      - path: SkiTrails/SkiTrailsTests/SkiTrailsUITests
+    dependencies:
+      - target: SkiTrails
+    settings:
+      base:
+        GENERATE_INFOPLIST_FILE: YES
+        PRODUCT_BUNDLE_IDENTIFIER: Bens-Bots.SkiTrails.UITests 

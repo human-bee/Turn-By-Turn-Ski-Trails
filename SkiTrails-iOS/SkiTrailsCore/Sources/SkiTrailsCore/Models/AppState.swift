@@ -3,6 +3,8 @@ import SwiftUI
 import CoreLocation
 
 public class AppState: ObservableObject {
+    public static var shared: AppState?
+    
     @Published public var isLoading: Bool = false
     @Published public var selectedTrail: String? = nil
     @Published public var navigationActive: Bool = false
@@ -12,22 +14,27 @@ public class AppState: ObservableObject {
     @Published public var selectedDestination: Location?
     @Published public var currentLocation: CLLocation?
     
+    public let locationManager: LocationManager
     private let apiClient: APIClient
     public let configuration: Configuration?
     
     public init() {
         self.apiClient = .shared
+        self.locationManager = LocationManager()
         do {
             self.configuration = try Configuration.default()
         } catch {
             self.configuration = nil
             self.error = error
         }
+        Self.shared = self
     }
     
     public init(configuration: Configuration) {
         self.apiClient = .shared
+        self.locationManager = LocationManager()
         self.configuration = configuration
+        Self.shared = self
     }
     
     @MainActor
@@ -46,5 +53,14 @@ public class AppState: ObservableObject {
     @MainActor
     public func selectResort(_ resort: Resort) {
         selectedResort = resort
+    }
+}
+
+extension AppState {
+    public static var preview: AppState {
+        let state = AppState()
+        state.resorts = [Resort.preview]
+        state.selectedResort = .preview
+        return state
     }
 } 
